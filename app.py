@@ -10,10 +10,10 @@ st.title("🛍️ Beyond Discounts: Black Friday Sales Insights")
 # Load Data (Cached for speed)
 @st.cache_data
 def load_data():
-    # Using the smaller sample dataset to bypass GitHub's 25MB limit
-    # If you used the ZIP method instead, change this to 'BlackFriday_Cleaned.zip'
-    pd.read_csv('BlackFriday_Cleaned.zip')
+    # Reading directly from the ZIP file you uploaded
+    df = pd.read_csv('BlackFriday_Cleaned.zip')
     return df
+
 
 df = load_data()
 
