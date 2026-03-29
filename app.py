@@ -33,7 +33,7 @@ st.set_page_config(
 GLASS_CSS = """
 <style>
 /* ── Google Font ── */
-@import url('[https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap](https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap)');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
 
 /* ── CSS Variables ── */
 :root {
@@ -65,7 +65,7 @@ html, body, [data-testid="stAppViewContainer"] {
     content: '';
     position: fixed;
     inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='[http://www.w3.org/2000/svg'%3E%3Cfilter](http://www.w3.org/2000/svg'%3E%3Cfilter) id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
     pointer-events: none;
     z-index: 0;
     opacity: 0.35;
@@ -697,19 +697,18 @@ with tab1:
         st.markdown('<div class="section-title">Revenue by Age Group</div>', unsafe_allow_html=True)
         if "Age" in df.columns:
             age_rev = df.groupby("Age")["Purchase"].sum().reset_index().sort_values("Purchase", ascending=True)
-            fig_age = go.Figure(go.Bar(
-                x=age_rev["Purchase"],
-                y=age_rev["Age"],
+            # Replaced go.Bar with px.bar to fix colorscale bug
+            fig_age = px.bar(
+                age_rev,
+                x="Purchase",
+                y="Age",
                 orientation="h",
-                marker=dict(
-                    color=age_rev["Purchase"],
-                    colorscale=[[0,"#3b28cc"],[0.5,"#6e56ff"],[1,"#ff5694"]],
-                    line=dict(width=0),
-                ),
-                hovertemplate="<b>Age %{y}</b><br>Revenue: ₹%{x:,.0f}<extra></extra>",
-            ))
+                color="Purchase",
+                color_continuous_scale=["#3b28cc", "#6e56ff", "#ff5694"]
+            )
+            fig_age.update_traces(hovertemplate="<b>Age %{y}</b><br>Revenue: ₹%{x:,.0f}<extra></extra>")
             fig_age = style_fig(fig_age, 360)
-            fig_age.update_layout(xaxis_title="Total Revenue (₹)", yaxis_title="")
+            fig_age.update_layout(xaxis_title="Total Revenue (₹)", yaxis_title="", coloraxis_showscale=False)
             st.plotly_chart(fig_age, use_container_width=True, config={"displayModeBar": False})
 
     st.markdown('<div style="height:.5rem"></div>', unsafe_allow_html=True)
@@ -760,18 +759,18 @@ with tab1:
             .reset_index()
             .sort_values("Purchase", ascending=False)
         )
-        fig_occ = go.Figure(go.Bar(
-            x=occ_rev["Occupation"].astype(str),
-            y=occ_rev["Purchase"],
-            marker=dict(
-                color=occ_rev["Purchase"],
-                colorscale=[[0,"#1a0a2e"],[0.4,"#6e56ff"],[1,"#00e5c3"]],
-                line=dict(width=0),
-            ),
-            hovertemplate="<b>Occupation %{x}</b><br>Revenue: ₹%{y:,.0f}<extra></extra>",
-        ))
+        occ_rev["Occupation_Str"] = occ_rev["Occupation"].astype(str)
+        # Replaced go.Bar with px.bar to fix colorscale bug
+        fig_occ = px.bar(
+            occ_rev,
+            x="Occupation_Str",
+            y="Purchase",
+            color="Purchase",
+            color_continuous_scale=["#1a0a2e", "#6e56ff", "#00e5c3"]
+        )
+        fig_occ.update_traces(hovertemplate="<b>Occupation %{x}</b><br>Revenue: ₹%{y:,.0f}<extra></extra>")
         fig_occ = style_fig(fig_occ, 320)
-        fig_occ.update_layout(xaxis_title="Occupation Code", yaxis_title="Total Revenue (₹)", bargap=0.25)
+        fig_occ.update_layout(xaxis_title="Occupation Code", yaxis_title="Total Revenue (₹)", bargap=0.25, coloraxis_showscale=False)
         st.plotly_chart(fig_occ, use_container_width=True, config={"displayModeBar": False})
 
 # ══════════════════════════════════════════════
@@ -1015,21 +1014,23 @@ with tab4:
                 .sort_values("Purchase", ascending=False)
                 .head(15)
             )
-            fig_cat = go.Figure(go.Bar(
-                x=cat1_rev["Purchase"],
-                y=cat1_rev["Product_Category_1"].astype(str),
+            cat1_rev["Category_Str"] = cat1_rev["Product_Category_1"].astype(str)
+            # Replaced go.Bar with px.bar to fix colorscale bug
+            fig_cat = px.bar(
+                cat1_rev,
+                x="Purchase",
+                y="Category_Str",
                 orientation="h",
-                marker=dict(
-                    color=cat1_rev["Purchase"],
-                    colorscale=[[0,"#1a0a2e"],[0.5,"#6e56ff"],[1,"#00e5c3"]],
-                    line=dict(width=0),
-                ),
-                hovertemplate="<b>Category %{y}</b><br>Revenue: ₹%{x:,.0f}<extra></extra>",
-            ))
+                color="Purchase",
+                color_continuous_scale=["#1a0a2e", "#6e56ff", "#00e5c3"]
+            )
+            fig_cat.update_traces(hovertemplate="<b>Category %{y}</b><br>Revenue: ₹%{x:,.0f}<extra></extra>")
             fig_cat = style_fig(fig_cat, 440)
             fig_cat.update_layout(
                 yaxis=dict(categoryorder="total ascending"),
                 xaxis_title="Total Revenue (₹)",
+                yaxis_title="",
+                coloraxis_showscale=False
             )
             st.plotly_chart(fig_cat, use_container_width=True, config={"displayModeBar": False})
 
@@ -1062,19 +1063,15 @@ with tab4:
                 .reset_index()
             )
             pivot = heat_df.pivot(index="Gender", columns="Product_Category_1", values="Purchase").fillna(0)
-            fig_heat = go.Figure(go.Heatmap(
-                z=pivot.values,
+            # Replaced go.Heatmap with px.imshow to fix colorscale bug
+            fig_heat = px.imshow(
+                pivot.values,
                 x=[str(c) for c in pivot.columns],
                 y=pivot.index.tolist(),
-                colorscale=[[0,"#05070f"],[0.3,"#3b28cc"],[0.6,"#6e56ff"],[1,"#ff5694"]],
-                hovertemplate="Category: %{x}<br>Gender: %{y}<br>Revenue: ₹%{z:,.0f}<extra></extra>",
-                showscale=True,
-                colorbar=dict(
-                    tickfont=dict(color="#c8d2f0",size=10),
-                    outlinecolor="rgba(0,0,0,0)",
-                    bgcolor="rgba(0,0,0,0)",
-                ),
-            ))
+                color_continuous_scale=["#05070f", "#3b28cc", "#6e56ff", "#ff5694"],
+                aspect="auto"
+            )
+            fig_heat.update_traces(hovertemplate="Category: %{x}<br>Gender: %{y}<br>Revenue: ₹%{z:,.0f}<extra></extra>")
             fig_heat = style_fig(fig_heat, 260)
             fig_heat.update_layout(xaxis_title="Product Category", yaxis_title="")
             st.plotly_chart(fig_heat, use_container_width=True, config={"displayModeBar": False})
