@@ -363,7 +363,6 @@ with tab2:
                              color_continuous_scale="Sunset", title="Variation Across Product Categories")
             fig_cat.update_layout(coloraxis_showscale=False)
             st.plotly_chart(style_fig(fig_cat), use_container_width=True)
-
 # ══════════════════════════════════════════════
 # TAB 3 — ANIMATED 3D NETWORK
 # ══════════════════════════════════════════════
@@ -395,7 +394,6 @@ with tab3:
             z="Purchase",
             color="Cluster",
             animation_frame="Hour",
-            animation_group="User_ID",
             color_discrete_sequence=["#0ea5e9", "#f43f5e", "#8b5cf6", "#10b981"],
             title="Interactive 3D Evolution of Sales Data Clusters",
             range_x=[cluster_data["Occupation"].min(), cluster_data["Occupation"].max()],
@@ -414,6 +412,7 @@ with tab3:
             )
         )
         st.plotly_chart(fig_network, use_container_width=True)
+
 
 # ══════════════════════════════════════════════
 # TAB 4 — ANOMALY DETECTION
