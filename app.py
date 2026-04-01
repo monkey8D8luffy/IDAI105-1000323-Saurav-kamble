@@ -363,16 +363,17 @@ with tab2:
                              color_continuous_scale="Sunset", title="Variation Across Product Categories")
             fig_cat.update_layout(coloraxis_showscale=False)
             st.plotly_chart(style_fig(fig_cat), use_container_width=True)
+
 # ══════════════════════════════════════════════
-# TAB 3 — ANIMATED 3D NETWORK
+# TAB 3 — 3D DATA NETWORK
 # ══════════════════════════════════════════════
 with tab3:
-    st.markdown("### 🧬 Time-Animated Cluster Network (K-Means)")
-    st.write("Press play to animate how customer spending clusters evolve dynamically throughout the 24-hour cycle.")
+    st.markdown("### 🧬 3D Data Network (K-Means Clustering)")
+    st.write("Explore how the machine learning model groups similar purchasing profiles into clusters. Rotate and zoom to investigate the data network.")
     
     if {"Purchase", "Occupation"}.issubset(df.columns):
-        # We sample tightly to ensure high-fps animation in browser
-        cluster_data = df.dropna(subset=["Purchase", "Occupation"]).sample(min(1500, len(df)), random_state=42)
+        # We sample tightly to ensure high-fps rendering in browser
+        cluster_data = df.dropna(subset=["Purchase", "Occupation"]).sample(min(2000, len(df)), random_state=42)
         
         # Prepare data for K-Means Clustering
         X = cluster_data[["Purchase", "Occupation"]].copy()
@@ -384,27 +385,21 @@ with tab3:
         kmeans = KMeans(n_clusters=4, random_state=42, n_init=10)
         cluster_data["Cluster"] = kmeans.fit_predict(X).astype(str)
         
-        # Sort by Hour to make the animation frame linear
-        cluster_data = cluster_data.sort_values("Hour")
-
         fig_network = px.scatter_3d(
             cluster_data, 
             x="Occupation", 
             y="Age", 
             z="Purchase",
             color="Cluster",
-            animation_frame="Hour",
             color_discrete_sequence=["#0ea5e9", "#f43f5e", "#8b5cf6", "#10b981"],
-            title="Interactive 3D Evolution of Sales Data Clusters",
-            range_x=[cluster_data["Occupation"].min(), cluster_data["Occupation"].max()],
-            range_y=[cluster_data["Age"].min(), cluster_data["Age"].max()],
-            range_z=[cluster_data["Purchase"].min(), cluster_data["Purchase"].max()]
+            title="Interactive 3D Sales Data Clusters"
         )
         
-        fig_network.update_traces(marker=dict(size=8, line=dict(width=1, color='White')))
+        fig_network.update_traces(marker=dict(size=6, line=dict(width=1, color='White')), opacity=0.8)
         fig_network.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            margin=dict(t=40, b=0, l=0, r=0),
             scene=dict(
                 xaxis=dict(showgrid=True, gridcolor="rgba(0,0,0,0.05)", backgroundcolor="rgba(0,0,0,0)"),
                 yaxis=dict(showgrid=True, gridcolor="rgba(0,0,0,0.05)", backgroundcolor="rgba(0,0,0,0)"),
@@ -412,8 +407,6 @@ with tab3:
             )
         )
         st.plotly_chart(fig_network, use_container_width=True)
-
-
 # ══════════════════════════════════════════════
 # TAB 4 — ANOMALY DETECTION
 # ══════════════════════════════════════════════
