@@ -1,6 +1,6 @@
 # ============================================================
 # BLACK FRIDAY SALES INTELLIGENCE DASHBOARD
-# Light Liquid Glass Edition — Enterprise UI + Animated 3D
+# Light Liquid Glass Edition — Enterprise UI + Plotly
 # ============================================================
 
 import os
@@ -197,16 +197,13 @@ def load_data() -> pd.DataFrame:
     if "Purchase" in df.columns:
         df = df.dropna(subset=["Purchase"])
         
-    # --- GENERATING SYNTHETIC TIME DATA FOR MINUTE TRACKING ---
-    # Since the original dataset lacks timestamps, we generate a normal distribution 
-    # of purchase times simulating a typical Black Friday 24-hour cycle.
+    # --- GENERATING SYNTHETIC TIME DATA ---
+    # Safely generate synthetic hours ensuring probabilities sum exactly to 1.0
     np.random.seed(42)
-    # Simulate peak hours around 14:00 (2 PM) and 20:00 (8 PM)
-    hours = np.random.choice(
-        np.arange(0, 24), 
-        size=len(df), 
-        p=[0.01,0.01,0.01,0.01,0.01,0.01,0.02,0.04,0.06,0.08,0.10,0.09,0.07,0.08,0.10,0.09,0.06,0.05,0.04,0.03,0.02,0.01,0.01,0.00]
-    )
+    weights = [1, 1, 1, 1, 1, 1, 2, 4, 6, 8, 10, 9, 7, 8, 10, 9, 6, 5, 4, 3, 2, 1, 0, 0]
+    p_normalized = np.array(weights) / sum(weights)
+    
+    hours = np.random.choice(np.arange(0, 24), size=len(df), p=p_normalized)
     minutes = np.random.randint(0, 60, size=len(df))
     
     df["Hour"] = hours
@@ -308,7 +305,7 @@ st.markdown(kpi_html, unsafe_allow_html=True)
 tab1, tab2, tab3, tab4 = st.tabs([
     "⏱️ Minute/Time Tracking",
     "📊 Financial Overview",
-    "🧬 Animated 3D Network",
+    "🧬 3D Data Network",
     "🚨 Anomaly Detection"
 ])
 
@@ -399,6 +396,7 @@ with tab3:
         fig_network.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            height=600,
             margin=dict(t=40, b=0, l=0, r=0),
             scene=dict(
                 xaxis=dict(showgrid=True, gridcolor="rgba(0,0,0,0.05)", backgroundcolor="rgba(0,0,0,0)"),
@@ -407,6 +405,7 @@ with tab3:
             )
         )
         st.plotly_chart(fig_network, use_container_width=True)
+
 # ══════════════════════════════════════════════
 # TAB 4 — ANOMALY DETECTION
 # ══════════════════════════════════════════════
