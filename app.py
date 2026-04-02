@@ -698,7 +698,16 @@ with T1:
     fp.add_trace(go.Scatter(x=user_rev["UserPct"], y=user_rev["CumPct"], name="Cumulative %", line=dict(color="#00BFFF",width=2.5), hovertemplate="%{x:.1f}% users → %{y:.1f}% revenue<extra></extra>"), secondary_y=True)
     fp.add_vline(x=thresh_x,line_dash="dash",line_color="#FFB347",line_width=1.5, annotation_text=f"80% Revenue @ top {thresh_x:.0f}% users", annotation_font_size=10,annotation_font_color="#FFB347")
     fp.add_hline(y=80,line_dash="dash",line_color="#FFB347",line_width=1, secondary_y=True)
-    fp.update_layout(**PLOTLY_BASE,**GRID, title="Pareto: Customer Revenue Concentration (80/20)", xaxis_title="% of Customers (ranked by spend)", yaxis_title="Transaction Revenue (₹)", yaxis2=dict(title="Cumulative Revenue %", range=[0,102], gridcolor="rgba(0,0,0,0)", tickcolor="rgba(0,0,0,0)", tickfont=dict(color="var(--tx3)"), titlefont=dict(color="#6a90b8")))
+    fp.update_layout(**PLOTLY_BASE,**GRID, 
+                     title="Pareto: Customer Revenue Concentration (80/20)", 
+                     xaxis_title="% of Customers (ranked by spend)", 
+                     yaxis_title="Transaction Revenue (₹)", 
+                     yaxis2=dict(title="Cumulative Revenue %", 
+                                 range=[0,102], 
+                                 gridcolor="rgba(0,0,0,0)", 
+                                 tickcolor="rgba(0,0,0,0)", 
+                                 tickfont=dict(color="#6a90b8"), # <--- FIXED
+                                 titlefont=dict(color="#6a90b8")))
     st.plotly_chart(fp, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
