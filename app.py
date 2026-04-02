@@ -1,5 +1,5 @@
 """
-Beyond Discounts: Black Friday Sales Intelligence  v4.0
+Beyond Discounts: Black Friday Sales Intelligence  v5.0
 Author   : InsightMart Analytics
 Stack    : Streamlit · Plotly · Pandas · scikit-learn
 Theme    : Liquid Glassmorphism · Crypto-Exchange Navy / Cyan
@@ -50,7 +50,7 @@ section[data-testid="stSidebar"] { display:none !important; }
   --warn    : #FFB347;
   --risk    : #FF6B6B;
   --glass   : rgba(12,22,48,0.65);
-  --glass-hi: rgba(16,32,64,0.85);
+  --glass-hi: rgba(10, 18, 40, 0.90);
   --gbdr    : rgba(0,191,255,0.15);
   --gbdr-hi : rgba(0,191,255,0.40);
   --gsm     : 0 0 20px rgba(0,191,255,0.18),0 6px 24px rgba(0,0,0,.50);
@@ -78,6 +78,7 @@ html,body,[data-testid="stApp"],[data-testid="stAppViewContainer"] {
     linear-gradient(180deg,#04060e 0%,#000000 100%) !important;
   background-color:#020508 !important;
   font-family:var(--fb); color:var(--tx1);
+  overflow-x: hidden;
 }
 
 /* ── grain ── */
@@ -101,7 +102,7 @@ html,body,[data-testid="stApp"],[data-testid="stAppViewContainer"] {
   max-width:100% !important;
 }
 
-/* ════ WIDGETS & SETTINGS POPOVER (LIQUID GLASS) ════ */
+/* ════ WIDGETS & RIGHT-SLIDE DRAWER (LIQUID GLASS) ════ */
 /* The Settings Button */
 [data-testid="stPopover"] > button {
   background: linear-gradient(135deg, rgba(0,191,255,0.15), rgba(30,144,255,0.10)) !important;
@@ -124,22 +125,33 @@ html,body,[data-testid="stApp"],[data-testid="stAppViewContainer"] {
   border-color: var(--neon) !important;
 }
 
-/* The Popover Dropdown Body (Liquid Animation) */
+/* The Popover Drawer (Detached & Fixed to Right Edge) */
 div[data-testid="stPopoverBody"] {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  left: auto !important;
+  bottom: 0 !important;
+  height: 100vh !important;
+  width: 380px !important;
+  max-height: 100vh !important;
   background: var(--glass-hi) !important;
   backdrop-filter: var(--blur) !important;
   -webkit-backdrop-filter: var(--blur) !important;
-  border: 1px solid var(--gbdr-hi) !important;
-  border-radius: var(--r) !important;
-  box-shadow: var(--glg) !important;
-  padding: 1.5rem !important;
-  animation: liquidDrop 0.6s var(--spring) forwards !important;
-  transform-origin: top center;
+  border: none !important;
+  border-left: 1px solid var(--gbdr-hi) !important;
+  border-radius: 1.5rem 0 0 1.5rem !important;
+  box-shadow: -15px 0 50px rgba(0,0,0,0.8), inset 2px 0 20px rgba(0,191,255,0.05) !important;
+  padding: 2.5rem 1.8rem !important;
+  animation: slideInRight 0.6s var(--spring) forwards !important;
+  transform-origin: right center !important;
+  z-index: 999999 !important;
+  overflow-y: auto !important;
 }
-@keyframes liquidDrop {
-  0% { opacity: 0; transform: scaleY(0.4) translateY(-30px); filter: blur(8px); }
-  60% { transform: scaleY(1.05) translateY(5px); filter: blur(0px); }
-  100% { opacity: 1; transform: scaleY(1) translateY(0); filter: blur(0px); }
+@keyframes slideInRight {
+  0% { transform: translateX(100%); opacity: 0; filter: blur(12px); }
+  60% { transform: translateX(-2%); filter: blur(0px); }
+  100% { transform: translateX(0); opacity: 1; filter: blur(0px); }
 }
 
 /* Form elements inside popover */
@@ -149,7 +161,7 @@ label,.stSelectbox label,.stMultiSelect label,
   letter-spacing:.09em !important; text-transform:uppercase !important;
   font-family:var(--fb) !important;
 }
-.stSelectbox>div>div,.stMultiSelect>div>div, [data-testid="stFileUploader"]>div {
+.stSelectbox>div>div,.stMultiSelect>div>div {
   background:rgba(4,10,24,.90) !important;
   border:1px solid var(--gbdr) !important;
   border-radius:var(--rs) !important; color:var(--tx1) !important;
@@ -402,12 +414,11 @@ def compute_clusters(_df: pd.DataFrame):
 
 @st.cache_resource(show_spinner=False)
 def train_prediction_engine(_df: pd.DataFrame):
-    """Trains a Random Forest model for the Prediction Tab"""
     if _df.empty: return None, None
     ml_cols = ["Gender_Label", "Age_Label", "City_Category", "Purchase"]
     if not all(c in _df.columns for c in ml_cols): return None, None
     
-    df_ml = _df[ml_cols].dropna().sample(min(10000, len(_df)), random_state=42) # Sample for speed
+    df_ml = _df[ml_cols].dropna().sample(min(10000, len(_df)), random_state=42) 
     if len(df_ml) < 50: return None, None
     
     X = pd.get_dummies(df_ml.drop(columns=["Purchase"]))
@@ -462,7 +473,7 @@ rfm_full, _, _ = compute_clusters(raw_df)
 pred_model, pred_features = train_prediction_engine(raw_df)
 
 # ══════════════════════════════════════════════════════════════════
-# HEADER & POPOVER SETTINGS
+# HEADER & POPOVER SETTINGS (RIGHT SLIDE)
 # ══════════════════════════════════════════════════════════════════
 
 col_title, col_settings = st.columns([0.85, 0.15])
@@ -477,19 +488,20 @@ with col_title:
     )
 
 with col_settings:
-    st.markdown("<br>", unsafe_allow_html=True) # Vertical alignment push
-    settings_pop = st.popover("⚙️ Settings & Filters")
+    st.markdown("<br>", unsafe_allow_html=True) 
+    settings_pop = st.popover("⚙️ Settings")
 
-# Render Filters inside the Popover Dropdown
+# Render Filters inside the Popover Dropdown (Styled as a Right Drawer via CSS)
 with settings_pop:
+    st.markdown('<div style="font-family:var(--fh); font-size:1.3rem; font-weight:800; color:var(--tx1); margin-bottom:1.5rem;">Intelligence Controls</div>', unsafe_allow_html=True)
+    
     st.markdown('<div class="sl">Global Data Filters</div>', unsafe_allow_html=True)
     
     g_opts = ["All"] + sorted(raw_df["Gender_Label"].unique().tolist())
     sel_g = st.selectbox("Gender Target", g_opts)
     
     age_labels = sorted(raw_df["Age_Label"].unique().tolist())
-    # The requested multi-select which acts as checkboxes in standard UX
-    sel_ages = st.multiselect("Age Groups (Check all that apply)", age_labels, default=age_labels)
+    sel_ages = st.multiselect("Age Groups", age_labels, default=age_labels)
     
     c_opts = ["All"] + sorted(raw_df["City_Category"].dropna().unique().tolist())
     sel_city = st.selectbox("City Tier Segment", c_opts)
@@ -499,23 +511,8 @@ with settings_pop:
     sel_rng = st.slider("Purchase Bracket (INR)", pmin, pmax, (pmin, pmax), step=100)
 
     st.markdown('<hr class="divider">', unsafe_allow_html=True)
-    st.markdown('<div class="sl">Data Source</div>', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("Override Dataset (CSV/ZIP)", type=["csv", "zip"])
-    
-    # Process override if uploaded
-    if uploaded_file is not None:
-        if uploaded_file.name.endswith('.zip'):
-            with zipfile.ZipFile(uploaded_file, "r") as z:
-                c_files = [n for n in z.namelist() if n.endswith(".csv")]
-                if c_files:
-                    with z.open(c_files[0]) as f: raw_df = clean_dataframe(pd.read_csv(io.BytesIO(f.read())))
-        else:
-            raw_df = clean_dataframe(pd.read_csv(uploaded_file))
-
-    st.markdown('<hr class="divider">', unsafe_allow_html=True)
     st.markdown('<div class="sl">Export Configuration</div>', unsafe_allow_html=True)
     
-    # Needs to capture the actively filtered df, so we define it before export download
     df = raw_df.copy()
     if sel_g != "All": df = df[df["Gender_Label"] == sel_g]
     if sel_ages:       df = df[df["Age_Label"].isin(sel_ages)]
@@ -598,7 +595,6 @@ with T1:
 
     with c2:
         st.markdown('<div class="cc">', unsafe_allow_html=True)
-        # New Chart: Funnel of User Activity vs Purchase Tier
         df['Purchase_Tier'] = pd.qcut(df['Purchase'], q=4, labels=["Bronze", "Silver", "Gold", "Platinum"])
         tier_counts = df['Purchase_Tier'].value_counts().reset_index()
         tier_counts.columns = ['Tier', 'Count']
@@ -644,7 +640,6 @@ with T2:
         
     with c2:
         st.markdown('<div class="cc">', unsafe_allow_html=True)
-        # New Chart: Violin Plot for deeper distribution insight
         fv = px.violin(rfm_f, x="Segment", y="Monetary", color="Segment", box=True, points="outliers", color_discrete_map=SEG_CLR, title="Segment Spend Volatility")
         fv.update_layout(**PLOTLY_BASE, **GRID, showlegend=False, xaxis_title="")
         st.plotly_chart(fv, use_container_width=True)
@@ -664,7 +659,6 @@ with T3:
         
         st.markdown('<div class="sl">Category Price Dispersion</div>', unsafe_allow_html=True)
         st.markdown('<div class="cc">', unsafe_allow_html=True)
-        # New Chart: Boxplot for Product Categories
         fbox = px.box(df, x="Product_Category_1", y="Purchase", color="Product_Category_1", title="Price Range Variance per Category")
         fbox.update_layout(**PLOTLY_BASE, **GRID, showlegend=False, xaxis_title="Category ID", yaxis_title="Price (₹)")
         st.plotly_chart(fbox, use_container_width=True)
@@ -704,7 +698,6 @@ with T5:
             
     with c2:
         st.markdown('<div class="cc">', unsafe_allow_html=True)
-        # New Chart: 2D Heatmap / Density Contour
         if "Age_Label" in df.columns and "City_Category" in df.columns:
             pivot_heat = df.pivot_table(index='Age_Label', columns='City_Category', values='Purchase', aggfunc='mean')
             fheat = px.imshow(pivot_heat, color_continuous_scale=BSCALE, title="Mean Volume: Age vs Location Vector", text_auto=".0f")
@@ -727,11 +720,9 @@ with T6:
         with pc2: p_age = st.selectbox("Simulate Age Band", list(AGE_MAP.values()))
         with pc3: p_cit = st.selectbox("Simulate City Vector", ["A", "B", "C", "Unknown"])
         
-        # Build inference row
         input_data = pd.DataFrame({"Gender_Label": [p_gen], "Age_Label": [p_age], "City_Category": [p_cit]})
         input_dummies = pd.get_dummies(input_data)
         
-        # Align columns with training data
         inference_vector = pd.DataFrame(columns=pred_features)
         for col in input_dummies.columns:
             if col in inference_vector.columns:
