@@ -489,10 +489,22 @@ with st.sidebar:
     st.markdown('<div class="sb-sec">Data Source Override</div>', unsafe_allow_html=True)
     uploaded_file = st.file_uploader("Optional: Upload a different dataset", type=["csv", "zip"])
 
-# --- LOAD LOGIC: Prioritize Sidebar Upload -> GitHub Local ZIP -> GitHub Local CSV ---
+# --- LOAD LOGIC: Auto-Detect Anywhere in GitHub ---
+def find_dataset(target_name):
+    """Recursively searches the entire GitHub repo for the file, ignoring case."""
+    target_name = target_name.lower()
+    for root, dirs, files in os.walk('.'):
+        for file in files:
+            if file.lower() == target_name:
+                return os.path.join(root, file)
+    return None
+
 raw_df = pd.DataFrame()
 
-with st.spinner("Locating Dataset..."):
+with st.spinner("Locating Dataset in Repository..."):
+    zip_path = find_dataset("blackfriday_cleaned.zip")
+    csv_path = find_dataset("blackfriday_cleaned.csv")
+    
     # 1. Sidebar Upload exists
     if uploaded_file is not None:
         if uploaded_file.name.endswith('.zip'):
@@ -505,22 +517,22 @@ with st.spinner("Locating Dataset..."):
             raw_df = pd.read_csv(uploaded_file)
             
     # 2. Check Local GitHub Repository for ZIP
-    elif os.path.exists("BlackFriday_Cleaned.zip"):
-        with zipfile.ZipFile("BlackFriday_Cleaned.zip", "r") as z:
+    elif zip_path:
+        with zipfile.ZipFile(zip_path, "r") as z:
             csv_files = [n for n in z.namelist() if n.endswith(".csv")]
             if csv_files:
                 with z.open(csv_files[0]) as f:
                     raw_df = pd.read_csv(io.BytesIO(f.read()))
                     
     # 3. Check Local GitHub Repository for CSV
-    elif os.path.exists("BlackFriday_Cleaned.csv"):
-        raw_df = pd.read_csv("BlackFriday_Cleaned.csv")
+    elif csv_path:
+        raw_df = pd.read_csv(csv_path)
         
     # Apply robust cleaning to whichever file was loaded
     if not raw_df.empty:
         raw_df = clean_dataframe(raw_df)
 
-# Fallback to Dummy Data if NO file is found (Prevents app from totally crashing)
+# Fallback to Dummy Data if NO file is found
 if raw_df.empty:
     st.sidebar.error("Dataset not found! Expected 'BlackFriday_Cleaned.zip' or '.csv' in the GitHub repository.")
     st.sidebar.warning("Generating temporary synthetic data for demonstration...")
@@ -536,6 +548,7 @@ if raw_df.empty:
         "Product_Category_1": np.random.randint(1, 15, n_samples),
         "Purchase": np.abs(np.random.normal(9000, 5000, n_samples)).astype(int) + 100
     })
+        
 
 # Compute Clustering
 rfm_full, ks, inertias = compute_clusters(raw_df)
