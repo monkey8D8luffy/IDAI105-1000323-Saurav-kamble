@@ -1,10 +1,3 @@
-"""
-Beyond Discounts: Black Friday Sales Intelligence  v5.0
-Author   : InsightMart Analytics
-Stack    : Streamlit · Plotly · Pandas · scikit-learn
-Theme    : Liquid Glassmorphism · Crypto-Exchange Navy / Cyan
-"""
-
 import io
 import os
 import zipfile
@@ -18,18 +11,13 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 import streamlit as st
 
-# ─────────────────────────────────────────────────────────────────
+
 st.set_page_config(
     page_title="InsightMart · Black Friday Intelligence",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="collapsed", # Hide sidebar entirely
 )
-
-# ══════════════════════════════════════════════════════════════════
-# GLOBAL CSS  –  Liquid Glass · Navy / Cyan
-# ══════════════════════════════════════════════════════════════════
-
 CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -328,9 +316,7 @@ label,.stSelectbox label,.stMultiSelect label,
 """
 st.markdown(CSS, unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════
-# CONSTANTS & BASE CONFIG
-# ══════════════════════════════════════════════════════════════════
+
 
 PLOTLY_BASE = dict(
     paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor ="rgba(0,0,0,0)",
@@ -352,9 +338,6 @@ SEG_CLR = {"Budget Explorer":"#1E90FF","Regular Shopper":"#00CED1","Loyal Custom
 GENDER_MAP = {"0":"Male", "1":"Female", "m":"Male", "f":"Female", "male":"Male", "female":"Female"}
 AGE_MAP    = {"1":"0-17", "2":"18-25", "3":"26-35", "4":"36-45", "5":"46-50", "6":"51-55", "7":"55+"}
 
-# ══════════════════════════════════════════════════════════════════
-# DATA CLEANING LOGIC 
-# ══════════════════════════════════════════════════════════════════
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     try:
@@ -385,9 +368,7 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         st.error(f"Error cleaning dataset: {e}")
         return pd.DataFrame()
 
-# ══════════════════════════════════════════════════════════════════
-# DATA PROCESSING & ML MODELS
-# ══════════════════════════════════════════════════════════════════
+
 
 @st.cache_data(show_spinner=False)
 def compute_clusters(_df: pd.DataFrame):
@@ -428,10 +409,6 @@ def train_prediction_engine(_df: pd.DataFrame):
     rf_model.fit(X, y)
     return rf_model, X.columns
 
-# ══════════════════════════════════════════════════════════════════
-# DATA INGESTION
-# ══════════════════════════════════════════════════════════════════
-
 def find_dataset(target_name):
     target_name = target_name.lower()
     for root, dirs, files in os.walk('.'):
@@ -454,7 +431,7 @@ elif csv_path:
 if not raw_df.empty:
     raw_df = clean_dataframe(raw_df)
 else:
-    # Synthetic Fallback
+  
     np.random.seed(42)
     n_samples = 5000
     raw_df = pd.DataFrame({
@@ -468,13 +445,9 @@ else:
         "Purchase": np.abs(np.random.normal(9000, 5000, n_samples)).astype(int) + 100
     })
 
-# Compute Global Data
+
 rfm_full, _, _ = compute_clusters(raw_df)
 pred_model, pred_features = train_prediction_engine(raw_df)
-
-# ══════════════════════════════════════════════════════════════════
-# HEADER & POPOVER SETTINGS (RIGHT SLIDE)
-# ══════════════════════════════════════════════════════════════════
 
 col_title, col_settings = st.columns([0.85, 0.15])
 
@@ -491,7 +464,7 @@ with col_settings:
     st.markdown("<br>", unsafe_allow_html=True) 
     settings_pop = st.popover("⚙️ Settings")
 
-# Render Filters inside the Popover Dropdown (Styled as a Right Drawer via CSS)
+
 with settings_pop:
     st.markdown('<div style="font-family:var(--fh); font-size:1.3rem; font-weight:800; color:var(--tx1); margin-bottom:1.5rem;">Intelligence Controls</div>', unsafe_allow_html=True)
     
@@ -527,10 +500,6 @@ with settings_pop:
         mime="text/csv"
     )
 
-# ══════════════════════════════════════════════════════════════════
-# KPIS
-# ══════════════════════════════════════════════════════════════════
-
 def fmt(n,pfx="",sfx=""):
     if pd.isna(n): return "0"
     if n>=1e9: return f"{pfx}{n/1e9:.2f}B{sfx}"
@@ -556,15 +525,11 @@ if df.empty:
     st.warning("Data threshold breached. No records match current parameters.", icon="⚠️")
     st.stop()
 
-# ══════════════════════════════════════════════════════════════════
-# THE 6 TABS (Executive to Prediction)
-# ══════════════════════════════════════════════════════════════════
 T1, T2, T3, T4, T5, T6 = st.tabs([
     "📈 Executive Overview", "🧠 Customer Intelligence", 
     "📦 Product Analytics", "🔍 Risk & Anomaly", "🔬 Advanced Analytics", "🔮 Prediction Engine"
 ])
 
-# ── TAB 1: EXECUTIVE ─────────────────────────────────────────
 with T1:
     top_age_grp  = df.groupby("Age_Label")["Purchase"].sum().idxmax()
     top_age_rev  = df.groupby("Age_Label")["Purchase"].sum().max()
@@ -622,7 +587,6 @@ with T1:
     st.plotly_chart(fp, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ── TAB 2: CUSTOMER INTELLIGENCE ─────────────────────────────────────────
 with T2:
     cur_users = set(df["User_ID"].unique())
     rfm_f = rfm_full[rfm_full["User_ID"].isin(cur_users)].copy()
@@ -645,7 +609,6 @@ with T2:
         st.plotly_chart(fv, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-# ── TAB 3: PRODUCT ANALYTICS ─────────────────────────────────────────
 with T3:
     if "Product_Category_1" in df.columns:
         cat_rev = df.groupby("Product_Category_1")["Purchase"].agg(Total_Revenue="sum",Avg_Purchase="mean").reset_index().rename(columns={"Product_Category_1":"Category"}).sort_values("Total_Revenue",ascending=False)
@@ -664,7 +627,6 @@ with T3:
         st.plotly_chart(fbox, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-# ── TAB 4: RISK & ANOMALY ─────────────────────────────────────────
 with T4:
     Q1a, Q3a = df["Purchase"].quantile(.25), df["Purchase"].quantile(.75)
     lo, hi   = Q1a - 1.5*(Q3a-Q1a), Q3a + 1.5*(Q3a-Q1a)
@@ -682,7 +644,6 @@ with T4:
     st.plotly_chart(fah, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ── TAB 5: ADVANCED ANALYTICS ─────────────────────────────────────────
 with T5:
     st.markdown('<div class="sl">Multivariate Density Matrix</div>', unsafe_allow_html=True)
     c1, c2 = st.columns(2)
@@ -705,7 +666,7 @@ with T5:
             st.plotly_chart(fheat, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-# ── TAB 6: PREDICTION ENGINE ─────────────────────────────────────────
+
 with T6:
     st.markdown('<div class="sl">Random Forest Regression Engine</div>', unsafe_allow_html=True)
     
