@@ -707,7 +707,7 @@ with T1:
                                  gridcolor="rgba(0,0,0,0)", 
                                  tickcolor="rgba(0,0,0,0)", 
                                  tickfont=dict(color="#6a90b8"), # <--- FIXED
-                                 titlefont=dict(color="#6a90b8")))
+                                 title_font=dict(color="#6a90b8")))
     st.plotly_chart(fp, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
