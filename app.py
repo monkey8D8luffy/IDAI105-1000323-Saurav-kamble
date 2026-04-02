@@ -1,13 +1,5 @@
-“””
-Beyond Discounts: Black Friday Sales Intelligence  v3.0
-Author  : InsightMart Analytics
-Stack   : Streamlit · Plotly · Pandas · scikit-learn
-Theme   : Liquid Glassmorphism · Crypto-Exchange Navy / Cyan
-“””
-
 import io
 import zipfile
-
 import numpy as np
 import pandas as pd
 import plotly.express as px
