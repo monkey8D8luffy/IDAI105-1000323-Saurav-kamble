@@ -6,6 +6,7 @@ Theme    : Liquid Glassmorphism · Crypto-Exchange Navy / Cyan
 """
 
 import io
+import os
 import zipfile
 import numpy as np
 import pandas as pd
@@ -331,16 +332,6 @@ label,.stSelectbox label,.stMultiSelect label,
 .ins-val  { font-family:var(--fm); font-size:.88rem; color:var(--neon);
   font-weight:500; margin-top:.28rem; }
 
-/* ════ STAT BARS ════ */
-.sbar { margin-bottom:.65rem; }
-.sbar-h { display:flex;justify-content:space-between;align-items:center;margin-bottom:.28rem; }
-.sbar-l { font-size:.72rem;color:var(--tx2); }
-.sbar-v { font-family:var(--fm);font-size:.7rem;color:var(--neon); }
-.sbar-bg { height:4px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden; }
-.sbar-f  { height:100%;border-radius:99px;
-  background:linear-gradient(90deg,var(--blue),var(--neon));
-  box-shadow:0 0 6px rgba(0,191,255,.3); }
-
 /* ════ QUALITY BADGES ════ */
 .qgrid { display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1rem; }
 .qb { background:rgba(12,22,48,.80);border:1px solid var(--gbdr);
@@ -386,27 +377,16 @@ SEGS    = ["Budget Explorer","Regular Shopper","Loyal Customer","Power Buyer"]
 SEG_CLR = {"Budget Explorer":"#1E90FF","Regular Shopper":"#00CED1",
            "Loyal Customer":"#4fc3f7","Power Buyer":"#00BFFF"}
 
-# Fault-tolerant mappings (handles numeric, string, floats seamlessly)
+# Fault-tolerant mappings (handles numeric 0/1 from CSV strings and floats seamlessly)
 GENDER_MAP = {"0":"Male", "1":"Female", "m":"Male", "f":"Female", "male":"Male", "female":"Female"}
 AGE_MAP    = {"1":"0-17", "2":"18-25", "3":"26-35", "4":"36-45", "5":"46-50", "6":"51-55", "7":"55+"}
 
 # ══════════════════════════════════════════════════════════════════
-# DATA LOADING ENGINE (BULLETPROOF)
+# DATA CLEANING LOGIC (BULLETPROOF)
 # ══════════════════════════════════════════════════════════════════
 
-@st.cache_data(show_spinner=False)
-def load_and_clean_data(file_obj) -> pd.DataFrame:
+def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     try:
-        # Read the file depending on its type
-        if file_obj.name.endswith('.zip'):
-            with zipfile.ZipFile(file_obj, "r") as z:
-                csv_files = [n for n in z.namelist() if n.endswith(".csv")]
-                if not csv_files: return pd.DataFrame()
-                with z.open(csv_files[0]) as f:
-                    df = pd.read_csv(io.BytesIO(f.read()))
-        else:
-            df = pd.read_csv(file_obj)
-            
         # 1. Clean Column Names
         df.columns = df.columns.str.strip()
         
@@ -417,7 +397,7 @@ def load_and_clean_data(file_obj) -> pd.DataFrame:
         df = df.dropna(subset=["Purchase", "User_ID"]).copy()
         df["Purchase"] = df["Purchase"].astype(int)
         
-        # 3. Robust Gender Mapping
+        # 3. Robust Gender Mapping (Fixes 0/1 from GitHub CSV)
         if "Gender" in df.columns:
             # Force to string, remove decimal zero if it was read as float, make lowercase
             safe_gender = df["Gender"].astype(str).str.lower().str.replace(r"\.0$", "", regex=True)
@@ -425,7 +405,7 @@ def load_and_clean_data(file_obj) -> pd.DataFrame:
         else:
             df["Gender_Label"] = "Unknown"
 
-        # 4. Robust Age Mapping
+        # 4. Robust Age Mapping (Fixes 1-7 from GitHub CSV)
         if "Age" in df.columns:
             safe_age = df["Age"].astype(str).str.replace(r"\.0$", "", regex=True)
             df["Age_Label"] = safe_age.map(AGE_MAP).fillna(df["Age"].astype(str))
@@ -441,7 +421,7 @@ def load_and_clean_data(file_obj) -> pd.DataFrame:
         return df
         
     except Exception as e:
-        st.error(f"Error parsing dataset: {e}")
+        st.error(f"Error cleaning dataset: {e}")
         return pd.DataFrame()
 
 # ══════════════════════════════════════════════════════════════════
@@ -506,16 +486,44 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
     
-    st.markdown('<div class="sb-sec">Data Source</div>', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("Upload Cleaned Dataset", type=["csv", "zip"])
+    st.markdown('<div class="sb-sec">Data Source Override</div>', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("Optional: Upload a different dataset", type=["csv", "zip"])
 
-# Load logic based on upload
-if uploaded_file is not None:
-    with st.spinner("Processing Dataset..."):
-        raw_df = load_and_clean_data(uploaded_file)
-else:
-    # Generate fake data if nothing uploaded so UI stays alive
-    st.sidebar.warning("Please upload your data to begin.")
+# --- LOAD LOGIC: Prioritize Sidebar Upload -> GitHub Local ZIP -> GitHub Local CSV ---
+raw_df = pd.DataFrame()
+
+with st.spinner("Locating Dataset..."):
+    # 1. Sidebar Upload exists
+    if uploaded_file is not None:
+        if uploaded_file.name.endswith('.zip'):
+            with zipfile.ZipFile(uploaded_file, "r") as z:
+                csv_files = [n for n in z.namelist() if n.endswith(".csv")]
+                if csv_files:
+                    with z.open(csv_files[0]) as f:
+                        raw_df = pd.read_csv(io.BytesIO(f.read()))
+        else:
+            raw_df = pd.read_csv(uploaded_file)
+            
+    # 2. Check Local GitHub Repository for ZIP
+    elif os.path.exists("BlackFriday_Cleaned.zip"):
+        with zipfile.ZipFile("BlackFriday_Cleaned.zip", "r") as z:
+            csv_files = [n for n in z.namelist() if n.endswith(".csv")]
+            if csv_files:
+                with z.open(csv_files[0]) as f:
+                    raw_df = pd.read_csv(io.BytesIO(f.read()))
+                    
+    # 3. Check Local GitHub Repository for CSV
+    elif os.path.exists("BlackFriday_Cleaned.csv"):
+        raw_df = pd.read_csv("BlackFriday_Cleaned.csv")
+        
+    # Apply robust cleaning to whichever file was loaded
+    if not raw_df.empty:
+        raw_df = clean_dataframe(raw_df)
+
+# Fallback to Dummy Data if NO file is found (Prevents app from totally crashing)
+if raw_df.empty:
+    st.sidebar.error("Dataset not found! Expected 'BlackFriday_Cleaned.zip' or '.csv' in the GitHub repository.")
+    st.sidebar.warning("Generating temporary synthetic data for demonstration...")
     np.random.seed(42)
     n_samples = 5000
     raw_df = pd.DataFrame({
@@ -529,10 +537,7 @@ else:
         "Purchase": np.abs(np.random.normal(9000, 5000, n_samples)).astype(int) + 100
     })
 
-if raw_df.empty:
-    st.error("Uploaded file could not be parsed.")
-    st.stop()
-
+# Compute Clustering
 rfm_full, ks, inertias = compute_clusters(raw_df)
 
 # Sidebar Filters
@@ -614,7 +619,6 @@ st.markdown(f"""
 if df.empty:
     st.warning("No data matches the current filters.", icon="⚠️")
     st.stop()
-
 
 # ══════════════════════════════════════════════════════════════════
 # TABS
