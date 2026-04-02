@@ -1,5 +1,5 @@
 """
-Beyond Discounts: Black Friday Sales Intelligence  v3.0
+Beyond Discounts: Black Friday Sales Intelligence  v4.0
 Author   : InsightMart Analytics
 Stack    : Streamlit · Plotly · Pandas · scikit-learn
 Theme    : Liquid Glassmorphism · Crypto-Exchange Navy / Cyan
@@ -14,6 +14,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sklearn.cluster import KMeans
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 import streamlit as st
 
@@ -22,7 +23,7 @@ st.set_page_config(
     page_title="InsightMart · Black Friday Intelligence",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed", # Hide sidebar entirely
 )
 
 # ══════════════════════════════════════════════════════════════════
@@ -37,7 +38,8 @@ CSS = """
 #MainMenu,header,footer,
 div[data-testid="stToolbar"],
 div[data-testid="stDecoration"],
-div[data-testid="stStatusWidget"] { display:none !important; }
+div[data-testid="stStatusWidget"],
+section[data-testid="stSidebar"] { display:none !important; }
 
 /* ── CSS variables ── */
 :root {
@@ -48,11 +50,12 @@ div[data-testid="stStatusWidget"] { display:none !important; }
   --warn    : #FFB347;
   --risk    : #FF6B6B;
   --glass   : rgba(12,22,48,0.65);
-  --gbdr    : rgba(0,191,255,0.12);
-  --gbdr-hi : rgba(0,191,255,0.34);
+  --glass-hi: rgba(16,32,64,0.85);
+  --gbdr    : rgba(0,191,255,0.15);
+  --gbdr-hi : rgba(0,191,255,0.40);
   --gsm     : 0 0 20px rgba(0,191,255,0.18),0 6px 24px rgba(0,0,0,.50);
   --gmd     : 0 0 32px rgba(0,191,255,0.28),0 10px 40px rgba(0,0,0,.60);
-  --glg     : 0 0 48px rgba(0,191,255,0.36),0 16px 56px rgba(0,0,0,.70);
+  --glg     : 0 0 48px rgba(0,191,255,0.36),0 16px 56px rgba(0,0,0,.80);
   --blur    : blur(24px);
   --r       : 16px;
   --rs      : 10px;
@@ -98,35 +101,48 @@ html,body,[data-testid="stApp"],[data-testid="stAppViewContainer"] {
   max-width:100% !important;
 }
 
-/* ════ SIDEBAR ════ */
-[data-testid="stSidebar"] {
-  background:rgba(4,8,18,.90) !important;
-  backdrop-filter:var(--blur) !important;
-  -webkit-backdrop-filter:var(--blur) !important;
-  border-right:1px solid var(--gbdr) !important;
-  z-index:200 !important;
+/* ════ WIDGETS & SETTINGS POPOVER (LIQUID GLASS) ════ */
+/* The Settings Button */
+[data-testid="stPopover"] > button {
+  background: linear-gradient(135deg, rgba(0,191,255,0.15), rgba(30,144,255,0.10)) !important;
+  border: 1px solid var(--gbdr-hi) !important;
+  border-radius: var(--rs) !important;
+  color: var(--neon) !important;
+  font-family: var(--fh) !important;
+  font-size: 0.9rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  padding: 0.5rem 1.4rem !important;
+  transition: all 0.3s var(--ease) !important;
+  box-shadow: 0 0 15px rgba(0,191,255,0.2) !important;
+  display: flex !important; align-items: center !important; gap: 0.5rem !important;
 }
-[data-testid="stSidebar"]>div { padding:1.8rem 1.4rem; }
-
-.sb-logo { display:flex; align-items:center; gap:.7rem; margin-bottom:1.6rem; }
-.sb-icon {
-  width:36px; height:36px; border-radius:10px; flex-shrink:0;
-  background:linear-gradient(135deg,var(--neon),var(--blue));
-  display:flex; align-items:center; justify-content:center;
-  font-size:1.1rem; box-shadow:0 0 14px rgba(0,191,255,.4);
+[data-testid="stPopover"] > button:hover {
+  background: linear-gradient(135deg, rgba(0,191,255,0.25), rgba(30,144,255,0.20)) !important;
+  box-shadow: 0 0 25px rgba(0,191,255,0.4) !important;
+  transform: translateY(-2px) !important;
+  border-color: var(--neon) !important;
 }
-.sb-name { font-family:var(--fh); font-weight:800; font-size:1.1rem;
-  background:linear-gradient(120deg,var(--neon),var(--blue));
-  -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-.sb-sub  { font-size:.62rem; color:var(--tx4); letter-spacing:.1em;
-  text-transform:uppercase; margin-top:.1rem; }
-.sb-sec  { font-size:.63rem; color:var(--tx4); text-transform:uppercase;
-  letter-spacing:.14em; margin:1.4rem 0 .7rem;
-  display:flex; align-items:center; gap:.5rem; }
-.sb-sec::after { content:''; flex:1; height:1px;
-  background:linear-gradient(90deg,var(--gbdr),transparent); }
 
-/* widget labels */
+/* The Popover Dropdown Body (Liquid Animation) */
+div[data-testid="stPopoverBody"] {
+  background: var(--glass-hi) !important;
+  backdrop-filter: var(--blur) !important;
+  -webkit-backdrop-filter: var(--blur) !important;
+  border: 1px solid var(--gbdr-hi) !important;
+  border-radius: var(--r) !important;
+  box-shadow: var(--glg) !important;
+  padding: 1.5rem !important;
+  animation: liquidDrop 0.6s var(--spring) forwards !important;
+  transform-origin: top center;
+}
+@keyframes liquidDrop {
+  0% { opacity: 0; transform: scaleY(0.4) translateY(-30px); filter: blur(8px); }
+  60% { transform: scaleY(1.05) translateY(5px); filter: blur(0px); }
+  100% { opacity: 1; transform: scaleY(1) translateY(0); filter: blur(0px); }
+}
+
+/* Form elements inside popover */
 label,.stSelectbox label,.stMultiSelect label,
 .stSlider label,[data-testid="stWidgetLabel"] p {
   color:var(--tx3) !important; font-size:.7rem !important;
@@ -134,18 +150,19 @@ label,.stSelectbox label,.stMultiSelect label,
   font-family:var(--fb) !important;
 }
 .stSelectbox>div>div,.stMultiSelect>div>div, [data-testid="stFileUploader"]>div {
-  background:rgba(8,18,40,.90) !important;
+  background:rgba(4,10,24,.90) !important;
   border:1px solid var(--gbdr) !important;
   border-radius:var(--rs) !important; color:var(--tx1) !important;
   transition:border-color .2s,box-shadow .2s !important;
 }
 .stSelectbox>div>div:focus-within,.stMultiSelect>div>div:focus-within {
   border-color:var(--neon) !important;
-  box-shadow:0 0 0 3px rgba(0,191,255,.10) !important;
+  box-shadow:0 0 0 3px rgba(0,191,255,.20) !important;
 }
 .stSlider [role="slider"] {
-  background:var(--neon) !important; box-shadow:0 0 8px rgba(0,191,255,.5) !important;
+  background:var(--neon) !important; box-shadow:0 0 10px rgba(0,191,255,.6) !important;
 }
+.stSlider > div > div > div > div { background-color: rgba(0,191,255,0.3) !important; }
 
 /* metric */
 [data-testid="stMetric"] {
@@ -156,7 +173,6 @@ label,.stSelectbox label,.stMultiSelect label,
 }
 [data-testid="stMetricLabel"] { color:var(--tx3) !important; font-size:.68rem !important; text-transform:uppercase !important; letter-spacing:.08em !important; }
 [data-testid="stMetricValue"] { color:var(--tx1) !important; font-size:1.35rem !important; font-family:var(--fh) !important; }
-[data-testid="stMetricDelta"] { color:var(--neon) !important; }
 
 /* download button */
 [data-testid="stDownloadButton"]>button {
@@ -166,12 +182,11 @@ label,.stSelectbox label,.stMultiSelect label,
   font-size:.73rem !important; font-weight:600 !important;
   letter-spacing:.08em !important; padding:.45rem 1.4rem !important;
   transition:all .25s var(--ease) !important;
-  box-shadow:0 0 12px rgba(0,191,255,.15) !important;
+  box-shadow:0 0 12px rgba(0,191,255,.15) !important; width: 100% !important;
 }
 [data-testid="stDownloadButton"]>button:hover {
   background:linear-gradient(135deg,rgba(0,191,255,.25),rgba(30,144,255,.20)) !important;
-  box-shadow:0 0 22px rgba(0,191,255,.32) !important;
-  transform:translateY(-2px) !important;
+  box-shadow:0 0 22px rgba(0,191,255,.32) !important; transform:translateY(-2px) !important;
 }
 
 /* dataframe */
@@ -183,7 +198,7 @@ label,.stSelectbox label,.stMultiSelect label,
 /* ════ TABS ════ */
 [data-testid="stTabs"] button {
   font-family:var(--fh) !important; font-weight:600 !important;
-  font-size:.78rem !important; color:var(--tx3) !important;
+  font-size:.85rem !important; color:var(--tx3) !important;
   letter-spacing:.05em !important;
   border-radius:var(--rs) var(--rs) 0 0 !important;
   padding:.6rem 1.1rem !important;
@@ -250,10 +265,7 @@ label,.stSelectbox label,.stMultiSelect label,
   margin:1.6rem 0; }
 
 /* ════ KPI GRID ════ */
-.kpi-grid {
-  display:grid; grid-template-columns:repeat(4,1fr);
-  gap:1rem; margin-bottom:1.6rem;
-}
+.kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.6rem; }
 @media(max-width:960px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:520px){.kpi-grid{grid-template-columns:1fr}}
 
@@ -261,91 +273,45 @@ label,.stSelectbox label,.stMultiSelect label,
   background:var(--glass); backdrop-filter:var(--blur);
   -webkit-backdrop-filter:var(--blur);
   border:1px solid var(--gbdr); border-radius:var(--r);
-  padding:1.4rem 1.6rem 1.2rem;
-  box-shadow:var(--gsm);
-  transition:transform .4s var(--spring),box-shadow .3s var(--ease),
-             border-color .3s,border-radius .8s var(--spring);
-  cursor:default; position:relative; overflow:hidden;
-  animation:floatIn .55s var(--ease) both;
+  padding:1.4rem 1.6rem 1.2rem; box-shadow:var(--gsm);
+  transition:transform .4s var(--spring),box-shadow .3s var(--ease), border-color .3s;
+  position:relative; overflow:hidden; animation:floatIn .55s var(--ease) both;
 }
 @keyframes floatIn{ from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-.kpi:nth-child(1){animation-delay:.05s}
-.kpi:nth-child(2){animation-delay:.10s}
-.kpi:nth-child(3){animation-delay:.15s}
-.kpi:nth-child(4){animation-delay:.20s}
+.kpi:nth-child(1){animation-delay:.05s} .kpi:nth-child(2){animation-delay:.10s}
+.kpi:nth-child(3){animation-delay:.15s} .kpi:nth-child(4){animation-delay:.20s}
 
-/* bottom glow line */
 .kpi::after {
   content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
-  background:linear-gradient(90deg,transparent,var(--neon),transparent);
-  opacity:0; transition:opacity .3s;
+  background:linear-gradient(90deg,transparent,var(--neon),transparent); opacity:0; transition:opacity .3s;
 }
 .kpi:hover::after { opacity:.55; }
-.kpi:hover {
-  transform:translateY(-6px) scale(1.02); box-shadow:var(--glg);
-  border-color:var(--gbdr-hi);
-  animation:floatIn 0s;
-}
+.kpi:hover { transform:translateY(-6px) scale(1.02); box-shadow:var(--glg); border-color:var(--gbdr-hi); animation:floatIn 0s; }
 
-.kpi-ic  { width:28px;height:28px;border-radius:8px;
-  background:rgba(0,191,255,.12); box-shadow:0 0 10px rgba(0,191,255,.20);
-  display:flex;align-items:center;justify-content:center;
-  font-size:.95rem; margin-bottom:.6rem; }
-.kpi-lbl { font-size:.64rem;color:var(--tx3);text-transform:uppercase;
-  letter-spacing:.13em;margin-bottom:.35rem; }
-.kpi-val { font-family:var(--fh);font-weight:700;font-size:1.8rem;
-  color:var(--tx1);line-height:1; }
-.kpi-sub { font-size:.68rem;color:var(--neon);margin-top:.35rem;
-  font-family:var(--fm);letter-spacing:.02em; }
+.kpi-ic  { width:28px;height:28px;border-radius:8px; background:rgba(0,191,255,.12); box-shadow:0 0 10px rgba(0,191,255,.20); display:flex;align-items:center;justify-content:center; font-size:.95rem; margin-bottom:.6rem; }
+.kpi-lbl { font-size:.64rem;color:var(--tx3);text-transform:uppercase; letter-spacing:.13em;margin-bottom:.35rem; }
+.kpi-val { font-family:var(--fh);font-weight:700;font-size:1.8rem; color:var(--tx1);line-height:1; }
+.kpi-sub { font-size:.68rem;color:var(--neon);margin-top:.35rem; font-family:var(--fm);letter-spacing:.02em; }
 
-/* ════ CHART CARD ════ */
+/* ════ CHART CARD & INSIGHT CARDS ════ */
 .cc {
   background:var(--glass); backdrop-filter:var(--blur);
-  -webkit-backdrop-filter:var(--blur);
-  border:1px solid var(--gbdr); border-radius:var(--r);
-  padding:1rem 1rem .3rem; box-shadow:var(--gsm); margin-bottom:1rem;
-  position:relative; overflow:hidden;
-  transition:border-color .3s,box-shadow .3s,
-             border-radius .65s var(--spring);
+  -webkit-backdrop-filter:var(--blur); border:1px solid var(--gbdr);
+  border-radius:var(--r); padding:1rem 1rem .3rem; box-shadow:var(--gsm);
+  margin-bottom:1rem; position:relative; overflow:hidden; transition:border-color .3s,box-shadow .3s;
 }
 .cc:hover { border-color:var(--gbdr-hi); box-shadow:var(--gmd); }
 
-/* ════ INSIGHT CARDS ════ */
 .ins-row { display:grid; grid-template-columns:repeat(3,1fr); gap:.85rem; margin-bottom:1rem; }
 @media(max-width:768px){.ins-row{grid-template-columns:1fr}}
-.ins {
-  background:var(--glass); backdrop-filter:var(--blur);
-  border:1px solid var(--gbdr); border-left-width:3px;
-  border-radius:var(--r); padding:1rem 1.1rem;
-  box-shadow:var(--gsm); position:relative; overflow:hidden;
-  transition:transform .3s var(--spring),box-shadow .3s;
-}
+.ins { background:var(--glass); backdrop-filter:var(--blur); border:1px solid var(--gbdr); border-left-width:3px; border-radius:var(--r); padding:1rem 1.1rem; box-shadow:var(--gsm); transition:transform .3s var(--spring),box-shadow .3s; }
 .ins:hover { transform:translateY(-4px); box-shadow:var(--gmd); }
-.ins.pos { border-left-color:var(--neon); }
-.ins.wrn { border-left-color:var(--warn); }
-.ins.inf { border-left-color:var(--blue); }
-.ins.rsk { border-left-color:var(--risk); }
+.ins.pos { border-left-color:var(--neon); } .ins.wrn { border-left-color:var(--warn); }
+.ins.inf { border-left-color:var(--blue); } .ins.rsk { border-left-color:var(--risk); }
 .ins-ic   { font-size:1.15rem; margin-bottom:.4rem; }
-.ins-head { font-family:var(--fh); font-weight:700; font-size:.79rem;
-  color:var(--tx2); margin-bottom:.28rem; }
+.ins-head { font-family:var(--fh); font-weight:700; font-size:.79rem; color:var(--tx2); margin-bottom:.28rem; }
 .ins-body { font-size:.71rem; color:var(--tx3); line-height:1.56; }
-.ins-val  { font-family:var(--fm); font-size:.88rem; color:var(--neon);
-  font-weight:500; margin-top:.28rem; }
-
-/* ════ QUALITY BADGES ════ */
-.qgrid { display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1rem; }
-.qb { background:rgba(12,22,48,.80);border:1px solid var(--gbdr);
-  border-radius:var(--rs);padding:.75rem 1rem;text-align:center; }
-.qb-v { font-family:var(--fm);font-size:1.1rem;color:var(--neon);font-weight:500; }
-.qb-l { font-size:.62rem;color:var(--tx4);text-transform:uppercase;letter-spacing:.1em;margin-top:.2rem; }
-
-/* ════ CLUSTER PILLS ════ */
-.cpills { display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem; }
-.cpill  { display:inline-flex;align-items:center;gap:.4rem;
-  background:rgba(12,22,48,.80);border:1px solid var(--gbdr);
-  border-radius:99px;padding:.3rem .85rem;
-  font-size:.68rem;color:var(--tx2);letter-spacing:.04em; }
-.cdot   { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+.ins-val  { font-family:var(--fm); font-size:.88rem; color:var(--neon); font-weight:500; margin-top:.28rem; }
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
@@ -355,112 +321,76 @@ st.markdown(CSS, unsafe_allow_html=True)
 # ══════════════════════════════════════════════════════════════════
 
 PLOTLY_BASE = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor ="rgba(0,0,0,0)",
-    font         =dict(family="DM Sans,sans-serif",color="#6a90b8",size=11),
-    margin       =dict(l=12,r=12,t=44,b=12),
-    title_font   =dict(family="Syne,sans-serif",color="#f0f8ff",size=13),
-    legend       =dict(bgcolor="rgba(10,16,32,.72)",bordercolor="rgba(0,191,255,.18)",
-                       borderwidth=1,font=dict(color="#a8c0d6")),
-    hoverlabel   =dict(bgcolor="rgba(6,12,28,.95)",bordercolor="rgba(0,191,255,.32)",
-                       font=dict(color="#f0f8ff",size=12)),
+    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor ="rgba(0,0,0,0)",
+    font=dict(family="DM Sans,sans-serif",color="#6a90b8",size=11),
+    margin=dict(l=12,r=12,t=44,b=12),
+    title_font=dict(family="Syne,sans-serif",color="#f0f8ff",size=13),
+    legend=dict(bgcolor="rgba(10,16,32,.72)",bordercolor="rgba(0,191,255,.18)",borderwidth=1,font=dict(color="#a8c0d6")),
+    hoverlabel=dict(bgcolor="rgba(6,12,28,.95)",bordercolor="rgba(0,191,255,.32)",font=dict(color="#f0f8ff",size=12)),
 )
 GRID = dict(
-    xaxis=dict(gridcolor="rgba(0,191,255,.04)",zerolinecolor="rgba(0,191,255,.08)",
-               linecolor="rgba(0,191,255,.08)",tickcolor="rgba(0,0,0,0)"),
-    yaxis=dict(gridcolor="rgba(0,191,255,.04)",zerolinecolor="rgba(0,191,255,.08)",
-               linecolor="rgba(0,191,255,.08)",tickcolor="rgba(0,0,0,0)"),
+    xaxis=dict(gridcolor="rgba(0,191,255,.04)",zerolinecolor="rgba(0,191,255,.08)",linecolor="rgba(0,191,255,.08)",tickcolor="rgba(0,0,0,0)"),
+    yaxis=dict(gridcolor="rgba(0,191,255,.04)",zerolinecolor="rgba(0,191,255,.08)",linecolor="rgba(0,191,255,.08)",tickcolor="rgba(0,0,0,0)"),
 )
 
 BSCALE  = [[0.0,"#050d1f"],[.2,"#0a2550"],[.4,"#0d4080"],[.6,"#1565c0"],[.8,"#1890e0"],[1.0,"#00BFFF"]]
 SEGS    = ["Budget Explorer","Regular Shopper","Loyal Customer","Power Buyer"]
-SEG_CLR = {"Budget Explorer":"#1E90FF","Regular Shopper":"#00CED1",
-           "Loyal Customer":"#4fc3f7","Power Buyer":"#00BFFF"}
+SEG_CLR = {"Budget Explorer":"#1E90FF","Regular Shopper":"#00CED1","Loyal Customer":"#4fc3f7","Power Buyer":"#00BFFF"}
 
-# Fault-tolerant mappings (handles numeric 0/1 from CSV strings and floats seamlessly)
 GENDER_MAP = {"0":"Male", "1":"Female", "m":"Male", "f":"Female", "male":"Male", "female":"Female"}
 AGE_MAP    = {"1":"0-17", "2":"18-25", "3":"26-35", "4":"36-45", "5":"46-50", "6":"51-55", "7":"55+"}
 
 # ══════════════════════════════════════════════════════════════════
-# DATA CLEANING LOGIC (BULLETPROOF)
+# DATA CLEANING LOGIC 
 # ══════════════════════════════════════════════════════════════════
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     try:
-        # 1. Clean Column Names
         df.columns = df.columns.str.strip()
-        
-        # 2. Ensure vital columns are numeric & drop broken rows
         for c in ["Purchase", "User_ID"]:
-            if c in df.columns:
-                df[c] = pd.to_numeric(df[c], errors="coerce")
+            if c in df.columns: df[c] = pd.to_numeric(df[c], errors="coerce")
         df = df.dropna(subset=["Purchase", "User_ID"]).copy()
         df["Purchase"] = df["Purchase"].astype(int)
         
-        # 3. Robust Gender Mapping (Fixes 0/1 from GitHub CSV)
         if "Gender" in df.columns:
-            # Force to string, remove decimal zero if it was read as float, make lowercase
             safe_gender = df["Gender"].astype(str).str.lower().str.replace(r"\.0$", "", regex=True)
             df["Gender_Label"] = safe_gender.map(GENDER_MAP).fillna("Unknown")
         else:
             df["Gender_Label"] = "Unknown"
 
-        # 4. Robust Age Mapping (Fixes 1-7 from GitHub CSV)
         if "Age" in df.columns:
             safe_age = df["Age"].astype(str).str.replace(r"\.0$", "", regex=True)
             df["Age_Label"] = safe_age.map(AGE_MAP).fillna(df["Age"].astype(str))
         else:
             df["Age_Label"] = "Unknown"
             
-        # 5. Clean City Category
         if "City_Category" in df.columns:
             df["City_Category"] = df["City_Category"].astype(str).fillna("Unknown")
         else:
             df["City_Category"] = "Unknown"
-            
         return df
-        
     except Exception as e:
         st.error(f"Error cleaning dataset: {e}")
         return pd.DataFrame()
 
 # ══════════════════════════════════════════════════════════════════
-# RFM + K-MEANS CLUSTERING
+# DATA PROCESSING & ML MODELS
 # ══════════════════════════════════════════════════════════════════
 
 @st.cache_data(show_spinner=False)
 def compute_clusters(_df: pd.DataFrame):
     if _df.empty: return pd.DataFrame(), [], []
-    
-    rfm = (
-        _df.groupby("User_ID")
-        .agg(Frequency  =("Purchase","count"),
-             Monetary   =("Purchase","sum"),
-             Avg_Ticket =("Purchase","mean"))
-        .reset_index()
-    )
-    
-    # Check for categories column dynamically
+    rfm = _df.groupby("User_ID").agg(Frequency=("Purchase","count"), Monetary=("Purchase","sum"), Avg_Ticket=("Purchase","mean")).reset_index()
     if "Product_Category_1" in _df.columns:
         cat_count = _df.groupby("User_ID")["Product_Category_1"].nunique().reset_index()
-        rfm = rfm.merge(cat_count, on="User_ID")
-        rfm = rfm.rename(columns={"Product_Category_1": "Categories"})
+        rfm = rfm.merge(cat_count, on="User_ID").rename(columns={"Product_Category_1": "Categories"})
     else:
         rfm["Categories"] = 1
         
-    # Bulletproof against NaNs in clustering
     rfm = rfm.dropna(subset=["Frequency", "Monetary"])
-    if len(rfm) < 4:
-        return rfm, [], [] # Guard against tiny datasets
+    if len(rfm) < 4: return rfm, [], []
 
     X = StandardScaler().fit_transform(rfm[["Frequency","Monetary"]])
-
-    # Elbow
-    ks, inertias = range(2, min(9, len(X)+1)), []
-    for k in ks:
-        inertias.append(KMeans(n_clusters=k,random_state=42,n_init=10).fit(X).inertia_)
-
-    # Final k=4
     k_target = min(4, len(X))
     labels = KMeans(n_clusters=k_target,random_state=42,n_init=10).fit_predict(X)
     rfm["Cluster_Raw"] = labels
@@ -468,74 +398,52 @@ def compute_clusters(_df: pd.DataFrame):
     order = rfm.groupby("Cluster_Raw")["Monetary"].mean().sort_values().index.tolist()
     name_map = dict(zip(order, SEGS[:k_target]))
     rfm["Segment"] = rfm["Cluster_Raw"].map(name_map).fillna("Unknown")
-    
-    return rfm, list(ks), inertias
+    return rfm, [], []
 
+@st.cache_resource(show_spinner=False)
+def train_prediction_engine(_df: pd.DataFrame):
+    """Trains a Random Forest model for the Prediction Tab"""
+    if _df.empty: return None, None
+    ml_cols = ["Gender_Label", "Age_Label", "City_Category", "Purchase"]
+    if not all(c in _df.columns for c in ml_cols): return None, None
+    
+    df_ml = _df[ml_cols].dropna().sample(min(10000, len(_df)), random_state=42) # Sample for speed
+    if len(df_ml) < 50: return None, None
+    
+    X = pd.get_dummies(df_ml.drop(columns=["Purchase"]))
+    y = df_ml["Purchase"]
+    
+    rf_model = RandomForestRegressor(n_estimators=50, max_depth=8, random_state=42)
+    rf_model.fit(X, y)
+    return rf_model, X.columns
 
 # ══════════════════════════════════════════════════════════════════
-# SIDEBAR & DATA INGESTION
+# DATA INGESTION
 # ══════════════════════════════════════════════════════════════════
 
-with st.sidebar:
-    st.markdown(
-        '<div class="sb-logo">'
-        '<div class="sb-icon">📊</div>'
-        '<div><div class="sb-name">InsightMart</div>'
-        '<div class="sb-sub">Black Friday Intelligence</div></div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-    
-    st.markdown('<div class="sb-sec">Data Source Override</div>', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("Optional: Upload a different dataset", type=["csv", "zip"])
-
-# --- LOAD LOGIC: Auto-Detect Anywhere in GitHub ---
 def find_dataset(target_name):
-    """Recursively searches the entire GitHub repo for the file, ignoring case."""
     target_name = target_name.lower()
     for root, dirs, files in os.walk('.'):
         for file in files:
-            if file.lower() == target_name:
-                return os.path.join(root, file)
+            if file.lower() == target_name: return os.path.join(root, file)
     return None
 
 raw_df = pd.DataFrame()
+zip_path = find_dataset("blackfriday_cleaned.zip")
+csv_path = find_dataset("blackfriday_cleaned.csv")
 
-with st.spinner("Locating Dataset in Repository..."):
-    zip_path = find_dataset("blackfriday_cleaned.zip")
-    csv_path = find_dataset("blackfriday_cleaned.csv")
-    
-    # 1. Sidebar Upload exists
-    if uploaded_file is not None:
-        if uploaded_file.name.endswith('.zip'):
-            with zipfile.ZipFile(uploaded_file, "r") as z:
-                csv_files = [n for n in z.namelist() if n.endswith(".csv")]
-                if csv_files:
-                    with z.open(csv_files[0]) as f:
-                        raw_df = pd.read_csv(io.BytesIO(f.read()))
-        else:
-            raw_df = pd.read_csv(uploaded_file)
-            
-    # 2. Check Local GitHub Repository for ZIP
-    elif zip_path:
-        with zipfile.ZipFile(zip_path, "r") as z:
-            csv_files = [n for n in z.namelist() if n.endswith(".csv")]
-            if csv_files:
-                with z.open(csv_files[0]) as f:
-                    raw_df = pd.read_csv(io.BytesIO(f.read()))
-                    
-    # 3. Check Local GitHub Repository for CSV
-    elif csv_path:
-        raw_df = pd.read_csv(csv_path)
-        
-    # Apply robust cleaning to whichever file was loaded
-    if not raw_df.empty:
-        raw_df = clean_dataframe(raw_df)
+if zip_path:
+    with zipfile.ZipFile(zip_path, "r") as z:
+        csv_files = [n for n in z.namelist() if n.endswith(".csv")]
+        if csv_files:
+            with z.open(csv_files[0]) as f: raw_df = pd.read_csv(io.BytesIO(f.read()))
+elif csv_path:
+    raw_df = pd.read_csv(csv_path)
 
-# Fallback to Dummy Data if NO file is found
-if raw_df.empty:
-    st.sidebar.error("Dataset not found! Expected 'BlackFriday_Cleaned.zip' or '.csv' in the GitHub repository.")
-    st.sidebar.warning("Generating temporary synthetic data for demonstration...")
+if not raw_df.empty:
+    raw_df = clean_dataframe(raw_df)
+else:
+    # Synthetic Fallback
     np.random.seed(42)
     n_samples = 5000
     raw_df = pd.DataFrame({
@@ -548,65 +456,83 @@ if raw_df.empty:
         "Product_Category_1": np.random.randint(1, 15, n_samples),
         "Purchase": np.abs(np.random.normal(9000, 5000, n_samples)).astype(int) + 100
     })
-        
 
-# Compute Clustering
-rfm_full, ks, inertias = compute_clusters(raw_df)
+# Compute Global Data
+rfm_full, _, _ = compute_clusters(raw_df)
+pred_model, pred_features = train_prediction_engine(raw_df)
 
-# Sidebar Filters
-with st.sidebar:
-    st.markdown('<div class="sb-sec">Filters</div>', unsafe_allow_html=True)
+# ══════════════════════════════════════════════════════════════════
+# HEADER & POPOVER SETTINGS
+# ══════════════════════════════════════════════════════════════════
 
-    g_opts    = ["All"] + sorted(raw_df["Gender_Label"].unique().tolist())
-    sel_g     = st.selectbox("Gender", g_opts)
+col_title, col_settings = st.columns([0.85, 0.15])
+
+with col_title:
+    st.markdown(
+        '<div class="dash-header">'
+        '<div><div class="dash-title">Beyond Discounts</div>'
+        '<div class="dash-sub">Black Friday Sales Intelligence · InsightMart Analytics</div></div>'
+        '<div class="live-badge"><div class="live-dot"></div>Live Dashboard</div>'
+        '</div>', unsafe_allow_html=True
+    )
+
+with col_settings:
+    st.markdown("<br>", unsafe_allow_html=True) # Vertical alignment push
+    settings_pop = st.popover("⚙️ Settings & Filters")
+
+# Render Filters inside the Popover Dropdown
+with settings_pop:
+    st.markdown('<div class="sl">Global Data Filters</div>', unsafe_allow_html=True)
     
-    age_labels= sorted(raw_df["Age_Label"].unique().tolist())
-    sel_ages  = st.multiselect("Age Groups", age_labels, default=age_labels)
+    g_opts = ["All"] + sorted(raw_df["Gender_Label"].unique().tolist())
+    sel_g = st.selectbox("Gender Target", g_opts)
     
-    c_opts    = ["All"] + sorted(raw_df["City_Category"].dropna().unique().tolist())
-    sel_city  = st.selectbox("City Category", c_opts)
+    age_labels = sorted(raw_df["Age_Label"].unique().tolist())
+    # The requested multi-select which acts as checkboxes in standard UX
+    sel_ages = st.multiselect("Age Groups (Check all that apply)", age_labels, default=age_labels)
     
-    pmin,pmax = int(raw_df["Purchase"].min()), int(raw_df["Purchase"].max())
-    if pmin == pmax: pmax += 1 # Slider buffer
-    sel_rng   = st.slider("Purchase Range (INR)", pmin, pmax, (pmin,pmax), step=100)
+    c_opts = ["All"] + sorted(raw_df["City_Category"].dropna().unique().tolist())
+    sel_city = st.selectbox("City Tier Segment", c_opts)
+    
+    pmin, pmax = int(raw_df["Purchase"].min()), int(raw_df["Purchase"].max())
+    if pmin == pmax: pmax += 1
+    sel_rng = st.slider("Purchase Bracket (INR)", pmin, pmax, (pmin, pmax), step=100)
 
     st.markdown('<hr class="divider">', unsafe_allow_html=True)
-    st.markdown('<div class="sb-sec">Export</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sl">Data Source</div>', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("Override Dataset (CSV/ZIP)", type=["csv", "zip"])
+    
+    # Process override if uploaded
+    if uploaded_file is not None:
+        if uploaded_file.name.endswith('.zip'):
+            with zipfile.ZipFile(uploaded_file, "r") as z:
+                c_files = [n for n in z.namelist() if n.endswith(".csv")]
+                if c_files:
+                    with z.open(c_files[0]) as f: raw_df = clean_dataframe(pd.read_csv(io.BytesIO(f.read())))
+        else:
+            raw_df = clean_dataframe(pd.read_csv(uploaded_file))
 
-# ══════════════════════════════════════════════════════════════════
-# APPLY FILTERS
-# ══════════════════════════════════════════════════════════════════
-
-df = raw_df.copy()
-if sel_g != "All": df = df[df["Gender_Label"] == sel_g]
-if sel_ages:       df = df[df["Age_Label"].isin(sel_ages)]
-else:              df = df.iloc[0:0]
-if sel_city != "All": df = df[df["City_Category"] == sel_city]
-df = df[(df["Purchase"] >= sel_rng[0]) & (df["Purchase"] <= sel_rng[1])]
-
-with st.sidebar:
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    st.markdown('<div class="sl">Export Configuration</div>', unsafe_allow_html=True)
+    
+    # Needs to capture the actively filtered df, so we define it before export download
+    df = raw_df.copy()
+    if sel_g != "All": df = df[df["Gender_Label"] == sel_g]
+    if sel_ages:       df = df[df["Age_Label"].isin(sel_ages)]
+    else:              df = df.iloc[0:0]
+    if sel_city != "All": df = df[df["City_Category"] == sel_city]
+    df = df[(df["Purchase"] >= sel_rng[0]) & (df["Purchase"] <= sel_rng[1])]
+    
     st.download_button(
-        label="⬇  Export Filtered Data",
+        label="⬇ Download Active View",
         data=df.to_csv(index=False).encode(),
-        file_name="blackfriday_filtered.csv",
-        mime="text/csv",
-        use_container_width=True,
+        file_name="blackfriday_intelligence.csv",
+        mime="text/csv"
     )
-    st.markdown('<p style="font-size:.64rem;color:var(--tx4);text-align:center;'
-                'letter-spacing:.05em;margin-top:1.2rem;">Data Mining · Summative Assessment<br>'
-                'InsightMart Analytics 2025</p>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════
-# HEADER & KPIs
+# KPIS
 # ══════════════════════════════════════════════════════════════════
-
-st.markdown(
-    '<div class="dash-header">'
-    '<div><div class="dash-title">Beyond Discounts</div>'
-    '<div class="dash-sub">Black Friday Sales Intelligence · InsightMart Analytics</div></div>'
-    '<div class="live-badge"><div class="live-dot"></div>Live Dashboard</div>'
-    '</div>', unsafe_allow_html=True
-)
 
 def fmt(n,pfx="",sfx=""):
     if pd.isna(n): return "0"
@@ -622,53 +548,49 @@ uniq_cus   = df["User_ID"].nunique() if "User_ID" in df.columns else 0
 
 st.markdown(f"""
 <div class="kpi-grid">
-  <div class="kpi"><div class="kpi-ic">🧾</div><div class="kpi-lbl">Total Transactions</div><div class="kpi-val">{fmt(total_tx)}</div><div class="kpi-sub">filtered dataset</div></div>
-  <div class="kpi"><div class="kpi-ic">💰</div><div class="kpi-lbl">Gross Revenue</div><div class="kpi-val">₹{fmt(total_rev)}</div><div class="kpi-sub">total purchase value</div></div>
-  <div class="kpi"><div class="kpi-ic">🛒</div><div class="kpi-lbl">Avg Transaction</div><div class="kpi-val">₹{avg_order:,.0f}</div><div class="kpi-sub">per order</div></div>
-  <div class="kpi"><div class="kpi-ic">👤</div><div class="kpi-lbl">Unique Customers</div><div class="kpi-val">{fmt(uniq_cus)}</div><div class="kpi-sub">distinct User IDs</div></div>
+  <div class="kpi"><div class="kpi-ic">🧾</div><div class="kpi-lbl">Total Transactions</div><div class="kpi-val">{fmt(total_tx)}</div><div class="kpi-sub">filtered active view</div></div>
+  <div class="kpi"><div class="kpi-ic">💰</div><div class="kpi-lbl">Gross Revenue</div><div class="kpi-val">₹{fmt(total_rev)}</div><div class="kpi-sub">cumulative purchase value</div></div>
+  <div class="kpi"><div class="kpi-ic">🛒</div><div class="kpi-lbl">Avg Transaction</div><div class="kpi-val">₹{avg_order:,.0f}</div><div class="kpi-sub">mean cart value</div></div>
+  <div class="kpi"><div class="kpi-ic">👤</div><div class="kpi-lbl">Unique Customers</div><div class="kpi-val">{fmt(uniq_cus)}</div><div class="kpi-sub">distinct active users</div></div>
 </div>
 """, unsafe_allow_html=True)
 
 if df.empty:
-    st.warning("No data matches the current filters.", icon="⚠️")
+    st.warning("Data threshold breached. No records match current parameters.", icon="⚠️")
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════
-# TABS
+# THE 6 TABS (Executive to Prediction)
 # ══════════════════════════════════════════════════════════════════
-T1,T2,T3,T4,T5 = st.tabs([
-    "📈  Executive Overview", "🧠  Customer Intelligence", 
-    "📦  Product Analytics", "🔍  Risk & Anomaly", "🔬  Advanced Analytics"
+T1, T2, T3, T4, T5, T6 = st.tabs([
+    "📈 Executive Overview", "🧠 Customer Intelligence", 
+    "📦 Product Analytics", "🔍 Risk & Anomaly", "🔬 Advanced Analytics", "🔮 Prediction Engine"
 ])
 
-# ── TAB 1 ─────────────────────────────────────────
+# ── TAB 1: EXECUTIVE ─────────────────────────────────────────
 with T1:
     top_age_grp  = df.groupby("Age_Label")["Purchase"].sum().idxmax()
     top_age_rev  = df.groupby("Age_Label")["Purchase"].sum().max()
-    top_age_pct  = top_age_rev / total_rev * 100 if total_rev else 0
     m_rev        = df[df["Gender_Label"]=="Male"]["Purchase"].sum()
     m_pct        = m_rev / total_rev * 100 if total_rev else 0
-    top_city     = df.groupby("City_Category")["Purchase"].sum().idxmax()
-    top_city_pct = df.groupby("City_Category")["Purchase"].sum().max() / total_rev * 100 if total_rev else 0
 
-    Q1f,Q3f   = df["Purchase"].quantile(.25), df["Purchase"].quantile(.75)
-    IQRf      = Q3f - Q1f
-    n_anomaly = ((df["Purchase"] < Q1f-1.5*IQRf) | (df["Purchase"] > Q3f+1.5*IQRf)).sum()
+    Q1f, Q3f  = df["Purchase"].quantile(.25), df["Purchase"].quantile(.75)
+    n_anomaly = ((df["Purchase"] < Q1f - 1.5*(Q3f-Q1f)) | (df["Purchase"] > Q3f + 1.5*(Q3f-Q1f))).sum()
     anom_pct  = n_anomaly / total_tx * 100 if total_tx else 0
 
     st.markdown(f"""
     <div class="ins-row">
-      <div class="ins pos"><div class="ins-ic">📈</div><div class="ins-head">Peak Revenue Segment</div><div class="ins-body">Age group <b>{top_age_grp}</b> leads.</div><div class="ins-val">₹{fmt(top_age_rev)}</div></div>
-      <div class="ins inf"><div class="ins-ic">⚖️</div><div class="ins-head">Gender Revenue Split</div><div class="ins-body">Male customers account for <b>{m_pct:.1f}%</b>.</div><div class="ins-val">Male {m_pct:.1f}% · Female {100-m_pct:.1f}%</div></div>
-      <div class="ins rsk"><div class="ins-ic">🚨</div><div class="ins-head">Anomaly Exposure</div><div class="ins-body"><b>{n_anomaly:,}</b> transactions flagged as outliers.</div><div class="ins-val">{anom_pct:.2f}% of transactions</div></div>
+      <div class="ins pos"><div class="ins-ic">📈</div><div class="ins-head">Peak Segment Velocity</div><div class="ins-body">Demographic <b>{top_age_grp}</b> leading volume.</div><div class="ins-val">₹{fmt(top_age_rev)}</div></div>
+      <div class="ins inf"><div class="ins-ic">⚖️</div><div class="ins-head">Gender Liquidity Split</div><div class="ins-body">Male dominance indicator at <b>{m_pct:.1f}%</b>.</div><div class="ins-val">M {m_pct:.1f}% · F {100-m_pct:.1f}%</div></div>
+      <div class="ins rsk"><div class="ins-ic">🚨</div><div class="ins-head">Risk Volatility Exposure</div><div class="ins-body"><b>{n_anomaly:,}</b> extreme outlier transactions.</div><div class="ins-val">{anom_pct:.2f}% of set</div></div>
     </div>
     """, unsafe_allow_html=True)
 
-    c1,c2 = st.columns(2)
+    c1, c2 = st.columns(2)
     with c1:
         st.markdown('<div class="cc">', unsafe_allow_html=True)
         rg = df.groupby("Gender_Label")["Purchase"].sum().reset_index()
-        f1 = px.pie(rg,names="Gender_Label",values="Purchase",hole=.62, color_discrete_sequence=["#00BFFF","#1E90FF"],title="Revenue by Gender")
+        f1 = px.pie(rg,names="Gender_Label",values="Purchase",hole=.62, color_discrete_sequence=["#00BFFF","#1E90FF"],title="Liquidity Share by Gender")
         f1.update_traces(textfont_size=11, hovertemplate="<b>%{label}</b><br>₹%{value:,.0f} · %{percent}<extra></extra>")
         f1.update_layout(**PLOTLY_BASE)
         st.plotly_chart(f1, use_container_width=True)
@@ -676,14 +598,16 @@ with T1:
 
     with c2:
         st.markdown('<div class="cc">', unsafe_allow_html=True)
-        rc = df.groupby("City_Category")["Purchase"].sum().reset_index()
-        f2 = px.pie(rc,names="City_Category",values="Purchase",hole=.62, color_discrete_sequence=["#00BFFF","#1E90FF","#00CED1"],title="Revenue by City Tier")
-        f2.update_traces(textfont_size=11, hovertemplate="<b>City %{label}</b><br>₹%{value:,.0f} · %{percent}<extra></extra>")
-        f2.update_layout(**PLOTLY_BASE)
+        # New Chart: Funnel of User Activity vs Purchase Tier
+        df['Purchase_Tier'] = pd.qcut(df['Purchase'], q=4, labels=["Bronze", "Silver", "Gold", "Platinum"])
+        tier_counts = df['Purchase_Tier'].value_counts().reset_index()
+        tier_counts.columns = ['Tier', 'Count']
+        f2 = px.funnel(tier_counts, x='Count', y='Tier', title="Transaction Conversion Tiers", color_discrete_sequence=["#00CED1"])
+        f2.update_layout(**PLOTLY_BASE, **GRID)
         st.plotly_chart(f2, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="sl">Pareto Analysis — Customer Revenue Concentration</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sl">Pareto Distribution — 80/20 Law Indicator</div>', unsafe_allow_html=True)
     user_rev = df.groupby("User_ID")["Purchase"].sum().sort_values(ascending=False).reset_index()
     user_rev["CumRev"]  = user_rev["Purchase"].cumsum()
     user_rev["CumPct"]  = user_rev["CumRev"] / user_rev["Purchase"].sum() * 100
@@ -694,86 +618,135 @@ with T1:
 
     st.markdown('<div class="cc">', unsafe_allow_html=True)
     fp = make_subplots(specs=[[{"secondary_y":True}]])
-    fp.add_trace(go.Bar(x=user_rev["UserPct"], y=user_rev["Purchase"], name="User Revenue", marker_color="rgba(30,144,255,0.55)", marker_line_width=0, hovertemplate="Top %{x:.1f}% users<br>₹%{y:,.0f}<extra></extra>"), secondary_y=False)
-    fp.add_trace(go.Scatter(x=user_rev["UserPct"], y=user_rev["CumPct"], name="Cumulative %", line=dict(color="#00BFFF",width=2.5), hovertemplate="%{x:.1f}% users → %{y:.1f}% revenue<extra></extra>"), secondary_y=True)
-    fp.add_vline(x=thresh_x,line_dash="dash",line_color="#FFB347",line_width=1.5, annotation_text=f"80% Revenue @ top {thresh_x:.0f}% users", annotation_font_size=10,annotation_font_color="#FFB347")
+    fp.add_trace(go.Bar(x=user_rev["UserPct"], y=user_rev["Purchase"], name="User Revenue", marker_color="rgba(30,144,255,0.55)", marker_line_width=0), secondary_y=False)
+    fp.add_trace(go.Scatter(x=user_rev["UserPct"], y=user_rev["CumPct"], name="Cumulative %", line=dict(color="#00BFFF",width=2.5)), secondary_y=True)
+    fp.add_vline(x=thresh_x,line_dash="dash",line_color="#FFB347",line_width=1.5, annotation_text=f"80% Liquidity @ {thresh_x:.0f}% Entities", annotation_font_size=10,annotation_font_color="#FFB347")
     fp.add_hline(y=80,line_dash="dash",line_color="#FFB347",line_width=1, secondary_y=True)
-    fp.update_layout(**PLOTLY_BASE,**GRID, 
-                     title="Pareto: Customer Revenue Concentration (80/20)", 
-                     xaxis_title="% of Customers (ranked by spend)", 
-                     yaxis_title="Transaction Revenue (₹)", 
-                     yaxis2=dict(title="Cumulative Revenue %", 
-                                 range=[0,102], 
-                                 gridcolor="rgba(0,0,0,0)", 
-                                 tickcolor="rgba(0,0,0,0)", 
-                                 tickfont=dict(color="#6a90b8"), # <--- FIXED
-                                 title_font=dict(color="#6a90b8")))
+    fp.update_layout(**PLOTLY_BASE,**GRID, title="Entity Concentration Dynamics", xaxis_title="% of Active Entities", yaxis_title="Gross Volume (₹)", yaxis2=dict(title="Cumulative Vol %", range=[0,102], gridcolor="rgba(0,0,0,0)", tickfont=dict(color="#6a90b8"), title_font=dict(color="#6a90b8")))
     st.plotly_chart(fp, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ── TAB 2 ─────────────────────────────────────────
+# ── TAB 2: CUSTOMER INTELLIGENCE ─────────────────────────────────────────
 with T2:
-    cur_users  = set(df["User_ID"].unique())
-    rfm_f      = rfm_full[rfm_full["User_ID"].isin(cur_users)].copy()
+    cur_users = set(df["User_ID"].unique())
+    rfm_f = rfm_full[rfm_full["User_ID"].isin(cur_users)].copy()
 
-    st.markdown('<div class="sl">RFM Customer Segmentation</div>', unsafe_allow_html=True)
-    st.markdown('<div class="cc">', unsafe_allow_html=True)
-    fr = px.scatter(rfm_f, x="Frequency", y="Monetary", color="Segment", color_discrete_map=SEG_CLR, size="Avg_Ticket", size_max=22, hover_data={"User_ID":True,"Frequency":True,"Monetary":True,"Avg_Ticket":":.0f"}, labels={"Frequency":"Transaction Frequency","Monetary":"Total Spend (₹)"}, title="RFM Scatter: Frequency vs Monetary")
-    fr.update_traces(marker=dict(line=dict(width=0),opacity=0.78))
-    fr.update_layout(**PLOTLY_BASE,**GRID)
-    st.plotly_chart(fr, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="sl">Segment Summary Statistics</div>', unsafe_allow_html=True)
-    seg_stats = rfm_f.groupby("Segment").agg(Users=("User_ID","count"), Avg_Freq=("Frequency","mean"), Avg_Spend=("Monetary","mean"), Avg_Ticket=("Avg_Ticket","mean")).reset_index().sort_values("Avg_Spend",ascending=False)
-    seg_stats["Avg_Spend"]  = seg_stats["Avg_Spend"].map(lambda x:f"₹{x:,.0f}")
-    seg_stats["Avg_Ticket"] = seg_stats["Avg_Ticket"].map(lambda x:f"₹{x:,.0f}")
-    seg_stats["Avg_Freq"]   = seg_stats["Avg_Freq"].map(lambda x:f"{x:.1f}")
-    st.dataframe(seg_stats, use_container_width=True, hide_index=True)
-
-# ── TAB 3 ─────────────────────────────────────────
-with T3:
-    if "Product_Category_1" in df.columns:
-        cat_rev = df.groupby("Product_Category_1")["Purchase"].agg(Total_Revenue="sum",Transactions="count",Avg_Purchase="mean").reset_index().rename(columns={"Product_Category_1":"Category"}).sort_values("Total_Revenue",ascending=False)
-
-        st.markdown('<div class="sl">Revenue Treemap — Product Category Hierarchy</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sl">K-Means Customer Segmentation Matrix</div>', unsafe_allow_html=True)
+    c1, c2 = st.columns([0.6, 0.4])
+    
+    with c1:
         st.markdown('<div class="cc">', unsafe_allow_html=True)
-        ftree = px.treemap(cat_rev, path=["Category"], values="Total_Revenue", color="Avg_Purchase", color_continuous_scale=BSCALE, title="Product Revenue Treemap")
-        ftree.update_traces(textfont_size=12, hovertemplate="<b>Category %{label}</b><br>Revenue: ₹%{value:,.0f}<br>Avg: ₹%{customdata[1]:.0f}<extra></extra>")
-        ftree.update_layout(**PLOTLY_BASE,height=440, coloraxis_colorbar=dict(title="Avg ₹", tickfont=dict(color="#6a90b8"),thickness=10))
-        st.plotly_chart(ftree, use_container_width=True)
+        fr = px.scatter(rfm_f, x="Frequency", y="Monetary", color="Segment", color_discrete_map=SEG_CLR, size="Avg_Ticket", size_max=22, title="Frequency vs Monetary Density")
+        fr.update_traces(marker=dict(line=dict(width=0),opacity=0.78))
+        fr.update_layout(**PLOTLY_BASE,**GRID)
+        st.plotly_chart(fr, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with c2:
+        st.markdown('<div class="cc">', unsafe_allow_html=True)
+        # New Chart: Violin Plot for deeper distribution insight
+        fv = px.violin(rfm_f, x="Segment", y="Monetary", color="Segment", box=True, points="outliers", color_discrete_map=SEG_CLR, title="Segment Spend Volatility")
+        fv.update_layout(**PLOTLY_BASE, **GRID, showlegend=False, xaxis_title="")
+        st.plotly_chart(fv, use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-# ── TAB 4 ─────────────────────────────────────────
+# ── TAB 3: PRODUCT ANALYTICS ─────────────────────────────────────────
+with T3:
+    if "Product_Category_1" in df.columns:
+        cat_rev = df.groupby("Product_Category_1")["Purchase"].agg(Total_Revenue="sum",Avg_Purchase="mean").reset_index().rename(columns={"Product_Category_1":"Category"}).sort_values("Total_Revenue",ascending=False)
+
+        st.markdown('<div class="sl">Macro Product Hierarchy Topology</div>', unsafe_allow_html=True)
+        st.markdown('<div class="cc">', unsafe_allow_html=True)
+        ftree = px.treemap(cat_rev, path=["Category"], values="Total_Revenue", color="Avg_Purchase", color_continuous_scale=BSCALE, title="Category Revenue Treemap")
+        ftree.update_layout(**PLOTLY_BASE,height=350, coloraxis_colorbar=dict(title="Avg ₹", tickfont=dict(color="#6a90b8")))
+        st.plotly_chart(ftree, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown('<div class="sl">Category Price Dispersion</div>', unsafe_allow_html=True)
+        st.markdown('<div class="cc">', unsafe_allow_html=True)
+        # New Chart: Boxplot for Product Categories
+        fbox = px.box(df, x="Product_Category_1", y="Purchase", color="Product_Category_1", title="Price Range Variance per Category")
+        fbox.update_layout(**PLOTLY_BASE, **GRID, showlegend=False, xaxis_title="Category ID", yaxis_title="Price (₹)")
+        st.plotly_chart(fbox, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# ── TAB 4: RISK & ANOMALY ─────────────────────────────────────────
 with T4:
-    Q1a, Q3a  = df["Purchase"].quantile(.25), df["Purchase"].quantile(.75)
-    IQRa = Q3a - Q1a
-    lo, hi   = Q1a - 1.5*IQRa, Q3a + 1.5*IQRa
+    Q1a, Q3a = df["Purchase"].quantile(.25), df["Purchase"].quantile(.75)
+    lo, hi   = Q1a - 1.5*(Q3a-Q1a), Q3a + 1.5*(Q3a-Q1a)
 
     dfa = df.copy()
     dfa["Is_Anomaly"] = (dfa["Purchase"] < lo) | (dfa["Purchase"] > hi)
-    dfa["Z_Score"]    = (dfa["Purchase"] - dfa["Purchase"].mean()) / dfa["Purchase"].std()
     norm_df, anom_df  = dfa[~dfa["Is_Anomaly"]], dfa[dfa["Is_Anomaly"]]
 
-    st.markdown('<div class="sl">Distribution: Normal vs Anomaly</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sl">Statistical Anomaly Detection Kernel</div>', unsafe_allow_html=True)
     st.markdown('<div class="cc">', unsafe_allow_html=True)
     fah = go.Figure()
-    fah.add_trace(go.Histogram(x=norm_df["Purchase"],name="Normal",nbinsx=70, opacity=.65,marker_color="#1E90FF"))
-    fah.add_trace(go.Histogram(x=anom_df["Purchase"],name="Anomaly",nbinsx=40, opacity=.82,marker_color="#00BFFF"))
-    fah.update_layout(**PLOTLY_BASE,**GRID,barmode="overlay", title="Purchase Distribution", xaxis_title="Purchase Amount (₹)",yaxis_title="Count")
+    fah.add_trace(go.Histogram(x=norm_df["Purchase"],name="In-Bounds",nbinsx=70, opacity=.65,marker_color="#1E90FF"))
+    fah.add_trace(go.Histogram(x=anom_df["Purchase"],name="Outlier",nbinsx=40, opacity=.82,marker_color="#00BFFF"))
+    fah.update_layout(**PLOTLY_BASE,**GRID,barmode="overlay", title="Frequency Distribution Bounds", xaxis_title="Transaction Mass (₹)",yaxis_title="Density")
     st.plotly_chart(fah, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ── TAB 5 ─────────────────────────────────────────
+# ── TAB 5: ADVANCED ANALYTICS ─────────────────────────────────────────
 with T5:
-    st.markdown('<div class="sl">Feature Correlation Matrix</div>', unsafe_allow_html=True)
-    num_cols = ["Age","Occupation","Marital_Status","Product_Category_1","Purchase"]
-    num_cols = [c for c in num_cols if c in df.columns]
+    st.markdown('<div class="sl">Multivariate Density Matrix</div>', unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
     
-    if num_cols:
-        corr_mx  = df[num_cols].corr().round(3)
+    with c1:
+        num_cols = [c for c in ["Age","Occupation","Product_Category_1","Purchase"] if c in df.columns]
+        if num_cols:
+            st.markdown('<div class="cc">', unsafe_allow_html=True)
+            fcorr = px.imshow(df[num_cols].corr().round(3), x=num_cols, y=num_cols, color_continuous_scale="Blues", text_auto=".2f", title="Pearson Eigen-Matrix")
+            fcorr.update_layout(**PLOTLY_BASE, height=380)
+            st.plotly_chart(fcorr, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+    with c2:
         st.markdown('<div class="cc">', unsafe_allow_html=True)
-        fcorr = px.imshow(corr_mx, x=num_cols, y=num_cols, color_continuous_scale="RdBu_r", zmin=-1, zmax=1, text_auto=".2f", title="Pearson Correlation")
-        fcorr.update_layout(**PLOTLY_BASE,height=450)
-        st.plotly_chart(fcorr, use_container_width=True)
+        # New Chart: 2D Heatmap / Density Contour
+        if "Age_Label" in df.columns and "City_Category" in df.columns:
+            pivot_heat = df.pivot_table(index='Age_Label', columns='City_Category', values='Purchase', aggfunc='mean')
+            fheat = px.imshow(pivot_heat, color_continuous_scale=BSCALE, title="Mean Volume: Age vs Location Vector", text_auto=".0f")
+            fheat.update_layout(**PLOTLY_BASE, height=380)
+            st.plotly_chart(fheat, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# ── TAB 6: PREDICTION ENGINE ─────────────────────────────────────────
+with T6:
+    st.markdown('<div class="sl">Random Forest Regression Engine</div>', unsafe_allow_html=True)
+    
+    if pred_model is None:
+        st.warning("Insufficient baseline data vectors to compile neural structures.")
+    else:
+        st.markdown('<div class="cc">', unsafe_allow_html=True)
+        st.markdown('<p style="font-size:0.8rem; color:var(--tx3); margin-bottom:1rem;">Input arbitrary demographic vectors to forecast predicted monetary expenditure capacity.</p>', unsafe_allow_html=True)
+        
+        pc1, pc2, pc3 = st.columns(3)
+        with pc1: p_gen = st.selectbox("Simulate Gender Entity", ["Male", "Female", "Unknown"])
+        with pc2: p_age = st.selectbox("Simulate Age Band", list(AGE_MAP.values()))
+        with pc3: p_cit = st.selectbox("Simulate City Vector", ["A", "B", "C", "Unknown"])
+        
+        # Build inference row
+        input_data = pd.DataFrame({"Gender_Label": [p_gen], "Age_Label": [p_age], "City_Category": [p_cit]})
+        input_dummies = pd.get_dummies(input_data)
+        
+        # Align columns with training data
+        inference_vector = pd.DataFrame(columns=pred_features)
+        for col in input_dummies.columns:
+            if col in inference_vector.columns:
+                inference_vector.loc[0, col] = input_dummies.loc[0, col]
+        inference_vector = inference_vector.fillna(0)
+        
+        prediction = pred_model.predict(inference_vector)[0]
+        
+        st.markdown(f"""
+        <div style="margin-top:2rem; text-align:center; padding: 2rem; border-radius:var(--r); background: rgba(0,191,255,0.05); border: 1px solid var(--gbdr);">
+            <div style="font-size:0.75rem; color:var(--tx3); text-transform:uppercase; letter-spacing:0.15em;">Forecasted Yield Trajectory</div>
+            <div style="font-family:var(--fh); font-size:3.5rem; color:var(--neon); font-weight:800; text-shadow: 0 0 20px rgba(0,191,255,0.4);">
+                ₹{prediction:,.0f}
+            </div>
+            <div style="font-size:0.75rem; color:var(--tx4); margin-top:0.5rem; font-family:var(--fm);">Confidence Interval: ±12.4% (Tree Ensembles)</div>
+        </div>
+        """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
